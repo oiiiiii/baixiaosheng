@@ -37,9 +37,14 @@ public interface CategoryDao {
     @Query("SELECT * FROM category WHERE id = :id")
     Category getCategoryById(long id);
 
-    // 查询所有一级分类（parentId=0）
-    @Query("SELECT * FROM category WHERE parentId = 0 ORDER BY createTime DESC")
-    List<Category> getParentCategories();
+
+    // 新增：查询父分类（parentId=0）
+    @Query("SELECT * FROM Category WHERE parentId = :parentId ORDER BY name ASC")
+    List<Category> getParentCategories(long parentId);
+
+    // 新增：查询指定父分类下的子分类，其实和下面的这个getChildCategoriesByParentId()是一个功能，等后续修复吧。
+    @Query("SELECT * FROM Category WHERE parentId = :parentId ORDER BY name ASC")
+    List<Category> getChildCategories(long parentId);
 
     // 根据父分类ID查询子分类
     @Query("SELECT * FROM category WHERE parentId = :parentId ORDER BY createTime DESC")

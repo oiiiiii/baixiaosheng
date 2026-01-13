@@ -67,7 +67,7 @@ public class CategoryManageActivity extends AppCompatActivity {
         });
 
         // 观察父分类列表（用于Spinner）
-        mViewModel.getParentCategories().observe(this, parentCategories -> {
+        mViewModel.getParentCategories(0).observe(this, parentCategories -> {
             mParentCategoryList = parentCategories;
             // 构建Spinner适配器
             String[] parentNames = new String[parentCategories.size() + 1];

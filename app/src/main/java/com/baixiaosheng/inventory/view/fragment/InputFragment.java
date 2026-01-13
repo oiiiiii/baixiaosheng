@@ -4,7 +4,6 @@ import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
@@ -14,6 +13,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.Toast;
@@ -184,10 +184,18 @@ public class InputFragment extends Fragment {
             // 创建临时图片文件
             mPhotoFile = ImageUtils.createImageFile(requireContext());
             // 获取拍照Intent
-            Uri[] photoUri = new Uri[1];
-            Intent takePhotoIntent = ImageUtils.getTakePhotoIntent(requireContext(), mPhotoFile, photoUri);
-            mTakePhotoUri = photoUri[0];
-            startActivityForResult(takePhotoIntent, REQUEST_TAKE_PHOTO);
+            Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+            if (takePictureIntent.resolveActivity(requireContext().getPackageManager()) != null) {
+                // 获取文件Uri（适配Android 7.0+ FileProvider）
+                Uri photoURI = androidx.core.content.FileProvider.getUriForFile(
+                        requireContext(),
+                        "com.baixiaosheng.inventory.fileprovider", // 和AndroidManifest中配置的一致
+                        mPhotoFile
+                );
+                mTakePhotoUri = photoURI;
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
+                startActivityForResult(takePictureIntent, REQUEST_TAKE_PHOTO);
+            }
         } catch (IOException e) {
             e.printStackTrace();
             Toast.makeText(getContext(), "创建图片文件失败", Toast.LENGTH_SHORT).show();
@@ -198,8 +206,9 @@ public class InputFragment extends Fragment {
      * 选择图片逻辑
      */
     private void choosePhoto() {
-        Intent choosePhotoIntent = ImageUtils.getChoosePhotoIntent();
-        startActivityForResult(choosePhotoIntent, REQUEST_CHOOSE_PHOTO);
+        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        intent.setType("image/*");
+        startActivityForResult(Intent.createChooser(intent, "选择图片"), REQUEST_CHOOSE_PHOTO);
     }
 
     /**
@@ -335,34 +344,50 @@ public class InputFragment extends Fragment {
     }
 
     /**
-     * 添加图片预览
+     * 图片预览逻辑（修复后）
      */
-    private void addImagePreview(String imagePath) {
-        // 创建ImageView
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                120, 120);
-        params.setMargins(4, 4, 4, 4);
-        android.widget.ImageView imageView = new android.widget.ImageView(requireContext());
-        imageView.setLayoutParams(params);
-        imageView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+    private void previewImage(String filePath) {
+        // 1. 解码图片（使用修复后的ImageUtils）
+        Bitmap bitmap = ImageUtils.decodeImage(filePath);
+        if (bitmap != null) {
+            // 2. 创建ImageView展示图片
+            ImageView ivPreview = new ImageView(getContext());
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                    dp2px(100), // 宽度100dp
+                    dp2px(100)  // 高度100dp
+            );
+            params.setMargins(dp2px(5), dp2px(5), dp2px(5), dp2px(5));
+            ivPreview.setLayoutParams(params);
+            ivPreview.setImageBitmap(bitmap);
+            ivPreview.setScaleType(ImageView.ScaleType.CENTER_CROP);
 
-        // 加载图片（防止OOM）
-        Bitmap bitmap = ImageUtils.getBitmapFromPath(imagePath, 120, 120);
-        imageView.setImageBitmap(bitmap);
+            // 长按删除逻辑
+            ivPreview.setOnLongClickListener(v -> {
+                mImagePaths.remove(filePath);
+                llImagePreview.removeView(ivPreview);
+                Toast.makeText(getContext(), "已删除图片", Toast.LENGTH_SHORT).show();
+                // 回收Bitmap
+                if (!bitmap.isRecycled()) {
+                    bitmap.recycle();
+                }
+                return true;
+            });
 
-        // 点击放大（暂简化处理）
-        imageView.setOnClickListener(v -> Toast.makeText(getContext(), "图片预览", Toast.LENGTH_SHORT).show());
+            // 点击预览逻辑
+            ivPreview.setOnClickListener(v -> Toast.makeText(getContext(), "图片预览", Toast.LENGTH_SHORT).show());
 
-        // 长按删除
-        imageView.setOnLongClickListener(v -> {
-            mImagePaths.remove(imagePath);
-            llImagePreview.removeView(imageView);
-            Toast.makeText(getContext(), "已删除图片", Toast.LENGTH_SHORT).show();
-            return true;
-        });
+            // 3. 添加到预览容器
+            llImagePreview.addView(ivPreview);
+        } else {
+            Toast.makeText(getContext(), "图片解码失败，无法预览", Toast.LENGTH_SHORT).show();
+        }
+    }
 
-        // 添加到预览区
-        llImagePreview.addView(imageView);
+    /**
+     * dp转px工具方法
+     */
+    private int dp2px(int dp) {
+        return (int) (dp * getResources().getDisplayMetrics().density + 0.5f);
     }
 
     @Override
@@ -394,71 +419,66 @@ public class InputFragment extends Fragment {
 
         if (requestCode == REQUEST_TAKE_PHOTO) {
             try {
-                // 修复1：移除冗余的Uri解析，直接使用mPhotoFile（拍照时已创建的File对象）
                 if (mPhotoFile == null || !mPhotoFile.exists()) {
                     Log.e("InputFragment", "拍照文件不存在或为空");
                     Toast.makeText(getContext(), "拍照文件丢失", Toast.LENGTH_SHORT).show();
                     return;
                 }
-
-                // 修复2：使用ImageUtils的防OOM方法加载图片（指定最大尺寸800x800）
-                Bitmap bitmap = ImageUtils.getBitmapFromPath(mPhotoFile.getAbsolutePath(), 800, 800);
+                String photoPath = mPhotoFile.getAbsolutePath();
+                // 解码并保存图片
+                Bitmap bitmap = ImageUtils.decodeImage(photoPath);
                 if (bitmap == null) {
-                    Log.e("InputFragment", "图片解码失败：Bitmap为null");
                     Toast.makeText(getContext(), "图片解码失败，请重试", Toast.LENGTH_SHORT).show();
                     return;
                 }
-
-                // 修复3：压缩保存图片（保留原有逻辑）
-                String compressPath = ImageUtils.compressAndSaveImage(requireContext(), bitmap);
-                if (compressPath != null) {
-                    mImagePaths.add(compressPath);
-                    addImagePreview(compressPath);
+                // 保存压缩后的图片
+                String savePath = ImageUtils.createImageFile(requireContext()).getAbsolutePath();
+                boolean saveSuccess = ImageUtils.saveBitmap(bitmap, savePath);
+                if (saveSuccess) {
+                    mImagePaths.add(savePath);
+                    previewImage(savePath);
                     Toast.makeText(getContext(), "图片保存成功", Toast.LENGTH_SHORT).show();
                 } else {
-                    Log.e("InputFragment", "图片压缩保存失败");
-                    Toast.makeText(getContext(), "图片压缩失败", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getContext(), "图片保存失败", Toast.LENGTH_SHORT).show();
                 }
-
-                // 修复4：回收Bitmap，避免内存泄漏
+                // 回收Bitmap
                 if (!bitmap.isRecycled()) {
                     bitmap.recycle();
                 }
             } catch (OutOfMemoryError e) {
-                // 专门捕获OOM异常
                 Log.e("InputFragment", "图片解码OOM：" + e.getMessage());
                 Toast.makeText(getContext(), "图片尺寸过大，无法处理", Toast.LENGTH_SHORT).show();
             } catch (Exception e) {
-                // 捕获其他解码异常
                 Log.e("InputFragment", "拍照图片处理异常：" + e.getMessage());
                 Toast.makeText(getContext(), "图片处理失败：" + e.getMessage(), Toast.LENGTH_SHORT).show();
             }
         } else if (requestCode == REQUEST_CHOOSE_PHOTO) {
-            // 选择图片逻辑保留（已有基础异常处理，可沿用）
             if (data != null && data.getData() != null) {
                 Uri uri = data.getData();
                 try {
                     String path = ImageUtils.getPathFromUri(requireContext(), uri);
-                    Bitmap bitmap = null;
-                    if (path != null && new File(path).exists()) {
-                        bitmap = ImageUtils.getBitmapFromPath(path, 800, 800); // 补充防OOM
-                    } else {
-                        bitmap = MediaStore.Images.Media.getBitmap(requireContext().getContentResolver(), uri);
+                    if (path == null) {
+                        Toast.makeText(getContext(), "无法获取图片路径", Toast.LENGTH_SHORT).show();
+                        return;
                     }
-
-                    if (bitmap != null) {
-                        String compressPath = ImageUtils.compressAndSaveImage(requireContext(), bitmap);
-                        if (compressPath != null) {
-                            mImagePaths.add(compressPath);
-                            addImagePreview(compressPath);
-                        } else {
-                            Toast.makeText(getContext(), "图片压缩失败", Toast.LENGTH_SHORT).show();
-                        }
-                        if (!bitmap.isRecycled()) {
-                            bitmap.recycle(); // 补充回收
-                        }
+                    // 解码并预览图片
+                    Bitmap bitmap = ImageUtils.decodeImage(path);
+                    if (bitmap == null) {
+                        Toast.makeText(getContext(), "图片解码失败", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    // 保存压缩后的图片
+                    String savePath = ImageUtils.createImageFile(requireContext()).getAbsolutePath();
+                    boolean saveSuccess = ImageUtils.saveBitmap(bitmap, savePath);
+                    if (saveSuccess) {
+                        mImagePaths.add(savePath);
+                        previewImage(savePath);
                     } else {
-                        Toast.makeText(getContext(), "图片加载失败", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(), "图片保存失败", Toast.LENGTH_SHORT).show();
+                    }
+                    // 回收Bitmap
+                    if (!bitmap.isRecycled()) {
+                        bitmap.recycle();
                     }
                 } catch (Exception e) {
                     e.printStackTrace();

@@ -60,10 +60,13 @@ public class DatabaseManager {
         return db.categoryDao().getCategoryById(id);
     }
 
-    public List<Category> getParentCategories() {
-        return db.categoryDao().getParentCategories();
+    public List<Category> getParentCategories(long parentId) {
+        return db.categoryDao().getParentCategories(parentId);
     }
 
+    public List<Category> getChildCategories(long parentId) {
+        return db.categoryDao().getChildCategories(parentId);
+    }
     public List<Category> getChildCategoriesByParentId(long parentId) {
         return db.categoryDao().getChildCategoriesByParentId(parentId);
     }

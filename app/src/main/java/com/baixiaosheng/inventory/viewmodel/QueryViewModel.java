@@ -56,7 +56,7 @@ public class QueryViewModel extends AndroidViewModel {
     // 加载父分类列表
     private void loadParentCategories() {
         executor.execute(() -> {
-            List<Category> categories = categoryDao.getParentCategories();
+            List<Category> categories = categoryDao.getParentCategories(0);
             // 兼容Java 8及以下版本，使用collect(Collectors.toList())替代toList()
             List<String> names = categories.stream()
                     .map(Category::getName)

@@ -160,10 +160,10 @@ public class CategoryManageViewModel extends AndroidViewModel {
     /**
      * 获取所有父分类（用于Spinner选择）
      */
-    public LiveData<List<Category>> getParentCategories() {
+    public LiveData<List<Category>> getParentCategories(long parentId) {
         MutableLiveData<List<Category>> liveData = new MutableLiveData<>();
         mExecutorService.execute(() -> {
-            List<Category> parentCategories = mCategoryDao.getParentCategories(); // 需在CategoryDao中实现该方法
+            List<Category> parentCategories = mCategoryDao.getParentCategories(parentId); // 需在CategoryDao中实现该方法
             liveData.postValue(parentCategories);
         });
         return liveData;
