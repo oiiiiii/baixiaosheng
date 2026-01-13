@@ -10,9 +10,11 @@ import com.baixiaosheng.inventory.database.InventoryDatabase;
 import com.baixiaosheng.inventory.database.dao.CategoryDao;
 import com.baixiaosheng.inventory.database.dao.ItemDao;
 import com.baixiaosheng.inventory.database.dao.LocationDao;
+import com.baixiaosheng.inventory.database.dao.RecycleDao;
 import com.baixiaosheng.inventory.database.entity.Category;
 import com.baixiaosheng.inventory.database.entity.Item;
 import com.baixiaosheng.inventory.database.entity.Location;
+import com.baixiaosheng.inventory.database.entity.Recycle;
 import com.baixiaosheng.inventory.model.FilterCondition;
 
 import java.util.ArrayList;
@@ -29,6 +31,7 @@ public class QueryViewModel extends AndroidViewModel {
     private final ItemDao itemDao;
     private final CategoryDao categoryDao;
     private final LocationDao locationDao;
+    private final RecycleDao recycleDao;
     // 线程池（数据库操作）
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     // 数据LiveData
@@ -38,6 +41,9 @@ public class QueryViewModel extends AndroidViewModel {
     private final MutableLiveData<List<String>> locationList = new MutableLiveData<>();
     // 筛选条件
     private final FilterCondition currentFilter = new FilterCondition();
+    // 缓存全量分类和位置数据（用于名称转ID）
+    private List<Category> allCategoriesCache;
+    private List<Location> allLocationsCache;
 
     public QueryViewModel(@NonNull Application application) {
         super(application);
@@ -46,11 +52,27 @@ public class QueryViewModel extends AndroidViewModel {
         itemDao = db.itemDao();
         categoryDao = db.categoryDao();
         locationDao = db.locationDao();
+        recycleDao = db.recycleDao(); // 初始化回收站Dao
         // 加载基础数据（分类/位置）
+        loadAllCategories();
+        loadAllLocations();
         loadParentCategories();
-        loadLocations();
         // 默认加载全量数据
         queryItems(currentFilter);
+    }
+
+    // 加载全量分类（缓存用于名称转ID）
+    private void loadAllCategories() {
+        executor.execute(() -> {
+            allCategoriesCache = categoryDao.getAllCategories();
+        });
+    }
+
+    // 加载全量位置（缓存用于名称转ID）
+    private void loadAllLocations() {
+        executor.execute(() -> {
+            allLocationsCache = locationDao.getAllLocations();
+        });
     }
 
     // 加载父分类列表
@@ -69,12 +91,13 @@ public class QueryViewModel extends AndroidViewModel {
     public void loadChildCategories(String parentCategory) {
         executor.execute(() -> {
             // 步骤1：先获取所有分类，找到父分类名称对应的ID
-            List<Category> allCategories = categoryDao.getAllCategories();
             long parentId = 0;
-            for (Category category : allCategories) {
-                if (parentCategory.equals(category.getName())) {
-                    parentId = category.getId();
-                    break;
+            if (allCategoriesCache != null) {
+                for (Category category : allCategoriesCache) {
+                    if (parentCategory.equals(category.getName())) {
+                        parentId = category.getId();
+                        break;
+                    }
                 }
             }
             // 步骤2：根据父分类ID查询子分类
@@ -99,7 +122,33 @@ public class QueryViewModel extends AndroidViewModel {
         });
     }
 
-    // 多条件查询物品
+    // 名称转分类ID
+    private Long getCategoryIdByName(String categoryName) {
+        if (categoryName == null || categoryName.isEmpty() || allCategoriesCache == null) {
+            return null;
+        }
+        for (Category category : allCategoriesCache) {
+            if (categoryName.equals(category.getName())) {
+                return category.getId();
+            }
+        }
+        return null;
+    }
+
+    // 名称转位置ID
+    private Long getLocationIdByName(String locationName) {
+        if (locationName == null || locationName.isEmpty() || allLocationsCache == null) {
+            return null;
+        }
+        for (Location location : allLocationsCache) {
+            if (locationName.equals(location.getName())) {
+                return location.getId();
+            }
+        }
+        return null;
+    }
+
+    // 多条件查询物品（修复：参数类型+数量+isDeleted过滤）
     public void queryItems(FilterCondition condition) {
         // 更新当前筛选条件
         currentFilter.setSearchKeyword(condition.getSearchKeyword());
@@ -114,16 +163,21 @@ public class QueryViewModel extends AndroidViewModel {
         Long expireStartLong = condition.getExpireStart() != null ? condition.getExpireStart().getTime() : null;
         Long expireEndLong = condition.getExpireEnd() != null ? condition.getExpireEnd().getTime() : null;
 
-        // 执行查询
+        // 名称转ID（核心修复：匹配Dao层的Long类型参数）
+        Long parentCategoryId = getCategoryIdByName(condition.getParentCategory());
+        Long childCategoryId = getCategoryIdByName(condition.getChildCategory());
+        Long locationId = getLocationIdByName(condition.getLocation());
+
+        // 执行查询（修复：参数类型+数量，添加isDeleted=0过滤）
         LiveData<List<Item>> result = itemDao.queryItemsByCondition(
                 condition.getSearchKeyword().isEmpty() ? null : condition.getSearchKeyword(),
-                condition.getParentCategory().isEmpty() ? null : condition.getParentCategory(),
-                condition.getChildCategory().isEmpty() ? null : condition.getChildCategory(),
-                condition.getLocation().isEmpty() ? null : condition.getLocation(),
+                parentCategoryId,
+                childCategoryId,
+                locationId,
                 condition.getQuantityMin(),
                 condition.getQuantityMax(),
-                expireStartLong,  // 替换Date → Long
-                expireEndLong     // 替换Date → Long
+                expireStartLong,
+                expireEndLong
         );
         result.observeForever(items -> {
             itemList.postValue(items);
@@ -132,16 +186,54 @@ public class QueryViewModel extends AndroidViewModel {
         });
     }
 
-    // 删除单个物品（标记回收站）
+    // 删除单个物品（修复：标记为回收站而非彻底删除）
     public void deleteItem(String uuid) {
-        executor.execute(() -> itemDao.markItemAsDeleted(uuid));
+        executor.execute(() -> {
+            // 1. 获取物品信息
+            Item item = itemDao.getItemByUuid(uuid);
+            if (item != null) {
+                // 2. 更新物品的删除标记（isDeleted=1）
+                item.setIsDeleted(1);
+                item.setUpdateTime(System.currentTimeMillis());
+                itemDao.updateItem(item);
+
+                // 3. 插入回收站记录
+                Recycle recycle = new Recycle();
+                recycle.setItemId(item.getId());
+                recycle.setItemUuid(item.getUuid());
+                recycle.setItemName(item.getName());
+                recycle.setDeleteTime(System.currentTimeMillis());
+                recycle.setDeleteReason("用户手动删除");
+                recycleDao.insertRecycle(recycle);
+            }
+        });
         // 重新查询刷新列表
         queryItems(currentFilter);
     }
 
-    // 批量删除物品
+    // 批量删除物品（修复：标记为回收站而非彻底删除）
     public void batchDeleteItems(List<String> uuidList) {
-        executor.execute(() -> itemDao.batchMarkDeleted(uuidList));
+        executor.execute(() -> {
+            for (String uuid : uuidList) {
+                // 1. 获取物品信息
+                Item item = itemDao.getItemByUuid(uuid);
+                if (item != null) {
+                    // 2. 更新物品的删除标记（isDeleted=1）
+                    item.setIsDeleted(1);
+                    item.setUpdateTime(System.currentTimeMillis());
+                    itemDao.updateItem(item);
+
+                    // 3. 插入回收站记录
+                    Recycle recycle = new Recycle();
+                    recycle.setItemId(item.getId());
+                    recycle.setItemUuid(item.getUuid());
+                    recycle.setItemName(item.getName());
+                    recycle.setDeleteTime(System.currentTimeMillis());
+                    recycle.setDeleteReason("批量删除");
+                    recycleDao.insertRecycle(recycle);
+                }
+            }
+        });
         // 重新查询刷新列表
         queryItems(currentFilter);
     }

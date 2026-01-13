@@ -3,6 +3,8 @@ package com.baixiaosheng.inventory.database;
 import android.content.Context;
 
 
+import androidx.lifecycle.LiveData;
+
 import com.baixiaosheng.inventory.database.entity.Category;
 import com.baixiaosheng.inventory.database.entity.Item;
 import com.baixiaosheng.inventory.database.entity.Location;
@@ -121,7 +123,7 @@ public class DatabaseManager {
         return db.itemDao().getItemById(id);
     }
 
-    public List<Item> getAllItems() {
+    public LiveData<List<Item>> getAllItems() {
         return db.itemDao().getAllItems();
     }
 
