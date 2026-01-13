@@ -150,8 +150,6 @@
                 android:scrollbars="horizontal"
                 android:weightSum="1">
 
-
-
                 <!-- 添加上传按钮 -->
                 <ImageView
                     android:id="@+id/ivAddImage"
@@ -165,9 +163,18 @@
                 <!-- 图片预览区域（动态添加） -->
             </LinearLayout>
 
-
+            <!-- 图片预览区（替换gap=8dp，后续通过代码给子View加marginLeft） -->
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp">
+                <LinearLayout
+                    android:id="@+id/ll_image_preview"
+                    android:layout_width="wrap_content"
+                    android:layout_height="120dp"
+                    android:orientation="horizontal"/>
+            </HorizontalScrollView>
         </LinearLayout>
-
 
         <!-- 物品说明（添加marginTop:12dp） -->
         <LinearLayout
