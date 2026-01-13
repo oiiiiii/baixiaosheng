@@ -5,46 +5,41 @@
     android:orientation="vertical"
     android:padding="16dp">
 
+    <!-- 查看详情按钮 -->
     <TextView
+        android:id="@+id/tv_view_detail"
+    android:layout_width="match_parent"
+    android:layout_height="48dp"
+    android:gravity="center"
+    android:text="查看详情"
+    android:textSize="16sp"/>
+
+    <!-- 编辑按钮 -->
+    <TextView
+        android:id="@+id/tv_edit"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="操作选择"
-        android:textSize="18sp"
-        android:textStyle="bold"
+        android:layout_height="48dp"
         android:gravity="center"
-        android:layout_marginBottom="16dp"/>
+        android:text="编辑"
+        android:textSize="16sp"/>
 
-    <LinearLayout
+    <!-- 删除按钮 -->
+    <TextView
+        android:id="@+id/tv_delete"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center">
+        android:layout_height="48dp"
+        android:gravity="center"
+        android:text="删除"
+        android:textColor="#FF4444"
+        android:textSize="16sp"/>
 
-        <Button
-            android:id="@+id/btn_view_detail"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:text="查看详情"
-            android:layout_marginRight="8dp"
-            android:backgroundTint="@color/colorPrimary"/>
-
-        <Button
-            android:id="@+id/btn_edit_item"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:text="编辑"
-            android:layout_marginRight="8dp"
-            android:backgroundTint="@color/blue_500"/>
-
-        <Button
-            android:id="@+id/btn_delete_item"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:text="删除"
-            android:backgroundTint="@color/red_500"/>
-    </LinearLayout>
+    <!-- 取消按钮 -->
+    <TextView
+        android:id="@+id/tv_cancel"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:gravity="center"
+        android:text="取消"
+        android:textSize="16sp"/>
 
 </LinearLayout>

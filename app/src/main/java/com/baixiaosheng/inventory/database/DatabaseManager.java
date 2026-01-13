@@ -77,6 +77,16 @@ public class DatabaseManager {
         return db.categoryDao().getAllCategories();
     }
 
+    // 新增：根据名称模糊查询分类（适配DefaultDataUtils）
+    public List<Category> getCategoryByName(String name) {
+        return db.categoryDao().searchCategory(name);
+    }
+
+    // 新增：根据名称和父ID查询分类（供导入工具类使用）
+    public List<Category> getCategoryByNameAndParentId(String name, long parentId) {
+        return db.categoryDao().getCategoryByNameAndParentId(name, parentId);
+    }
+
     // ==================== 位置表操作 ====================
     public long addLocation(Location location) {
         long currentTime = System.currentTimeMillis();
@@ -96,6 +106,11 @@ public class DatabaseManager {
 
     public Location getLocationById(long id) {
         return db.locationDao().getLocationById(id);
+    }
+
+    // 精确查询位置（按名称，供导入去重使用）
+    public List<Location> getLocationByName(String name) {
+        return db.locationDao().getLocationByName(name);
     }
 
     public List<Location> getAllLocations() {
@@ -123,6 +138,10 @@ public class DatabaseManager {
         return db.itemDao().getItemById(id);
     }
 
+    // 新增：根据UUID查询物品（供导入去重使用）
+    public Item getItemByUuid(String uuid) {
+        return db.itemDao().getItemByUuid(uuid);
+    }
     public LiveData<List<Item>> getAllItems() {
         return db.itemDao().getAllItems();
     }
@@ -133,6 +152,16 @@ public class DatabaseManager {
 
     public List<Item> searchExpiredItems(String keyword, long currentTime, long startDate, long endDate, int isDeleted) {
         return db.itemDao().searchExpiredItems(keyword, currentTime, startDate, endDate, isDeleted);
+    }
+
+    // 重载：通过itemId标记物品为删除（逻辑删除）
+    public void markItemAsDeleted(Long itemId) {
+        // 先通过ID查询物品，获取UUID
+        Item item = db.itemDao().getItemById(itemId);
+        if (item != null) {
+            long currentTime = System.currentTimeMillis();
+            db.itemDao().markItemAsDeleted(item.getUuid(), currentTime);
+        }
     }
 
     // ==================== 回收站表操作 ====================

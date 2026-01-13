@@ -11,7 +11,7 @@ import java.util.concurrent.Executors;
 import android.util.Log;
 
 /**
- * 录入页ViewModel（修复数据库操作线程和异常处理）
+ * 录入页ViewModel（修复数据库操作线程和异常处理 + 支持物品更新）
  */
 public class InputViewModel extends AndroidViewModel {
     private final InventoryDatabase mDb;
@@ -37,30 +37,38 @@ public class InputViewModel extends AndroidViewModel {
                 }
 
                 // 插入数据库
-                long[] ids = mDb.itemDao().insertItem(item);
-                mSaveSuccess.postValue(ids != null && ids.length > 0 && ids[0] != -1);
+                mDb.itemDao().insertItem(item);
+                mSaveSuccess.postValue(true);
             } catch (Exception e) {
-                Log.e("InputViewModel", "保存失败：" + e.getMessage());
+                Log.e("InputViewModel", "保存物品失败：" + e.getMessage());
                 mSaveSuccess.postValue(false);
             }
         });
     }
 
     /**
-     * 获取保存结果
+     * 新增：更新物品信息
      */
-    public MutableLiveData<Boolean> getSaveSuccess() {
-        return mSaveSuccess;
+    public void updateItem(Item item) {
+        mExecutor.execute(() -> {
+            try {
+                // 检查图片路径长度（避免数据库字段溢出）
+                if (item.getImagePaths() != null && item.getImagePaths().length() > 500) {
+                    Log.e("InputViewModel", "图片路径过长，截断处理");
+                    item.setImagePaths(item.getImagePaths().substring(0, 500));
+                }
+
+                // 更新数据库
+                mDb.itemDao().updateItem(item);
+                mSaveSuccess.postValue(true);
+            } catch (Exception e) {
+                Log.e("InputViewModel", "更新物品失败：" + e.getMessage());
+                mSaveSuccess.postValue(false);
+            }
+        });
     }
 
-    /**
-     * 释放线程池，避免内存泄漏
-     */
-    @Override
-    protected void onCleared() {
-        super.onCleared();
-        if (!mExecutor.isShutdown()) {
-            mExecutor.shutdown();
-        }
+    public MutableLiveData<Boolean> getSaveSuccess() {
+        return mSaveSuccess;
     }
 }

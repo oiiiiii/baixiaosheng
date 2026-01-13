@@ -65,4 +65,8 @@ public interface CategoryDao {
     // 获取分类关联的物品数量
     @Query("SELECT COUNT(*) FROM item WHERE parentCategoryId = :categoryId AND isDeleted = 0")
     int getRelatedItemCount(long categoryId);
+
+    // 新增：根据名称和父ID查询分类（用于导入去重）
+    @Query("SELECT * FROM category WHERE name = :name AND parentId = :parentId")
+    List<Category> getCategoryByNameAndParentId(String name, long parentId);
 }

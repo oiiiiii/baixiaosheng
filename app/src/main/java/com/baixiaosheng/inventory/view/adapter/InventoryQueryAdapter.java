@@ -1,6 +1,7 @@
 package com.baixiaosheng.inventory.view.adapter;
 
 import android.content.Context;
+import android.app.AlertDialog;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -30,6 +31,8 @@ public class InventoryQueryAdapter extends RecyclerView.Adapter<InventoryQueryAd
     // 回调
     private OnItemClickListener itemClickListener;
     private OnMultiSelectChangeListener multiSelectChangeListener;
+    // 新增：编辑点击监听
+    private OnItemEditListener editListener;
 
     // 日期格式化
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.CHINA);
@@ -83,10 +86,8 @@ public class InventoryQueryAdapter extends RecyclerView.Adapter<InventoryQueryAd
                 // 多选模式：切换选中状态（直接操作复选框，由监听处理计数）
                 holder.cbSelect.setChecked(!holder.cbSelect.isChecked());
             } else {
-                // 普通模式：回调点击事件
-                if (itemClickListener != null) {
-                    itemClickListener.onItemClick(item);
-                }
+                // 普通模式：弹出操作菜单（查看/编辑/删除）
+                showItemOperationMenu(item);
             }
         });
 
@@ -100,6 +101,38 @@ public class InventoryQueryAdapter extends RecyclerView.Adapter<InventoryQueryAd
             }
             return true;
         });
+    }
+
+    /**
+     * 新增：物品操作菜单（查看/编辑/删除）
+     */
+    private void showItemOperationMenu(Item item) {
+        new AlertDialog.Builder(context)
+                .setTitle("操作选项")
+                .setItems(new String[]{"查看详情", "编辑物品", "删除物品"}, (dialog, which) -> {
+                    switch (which) {
+                        case 0:
+                            // 查看详情
+                            if (itemClickListener != null) {
+                                itemClickListener.onItemClick(item);
+                            }
+                            break;
+                        case 1:
+                            // 编辑物品
+                            if (editListener != null) {
+                                editListener.onItemEdit(item);
+                            }
+                            break;
+                        case 2:
+                            // 删除物品（复用原有删除逻辑，通过itemClickListener透传）
+                            if (itemClickListener != null) {
+                                itemClickListener.onItemClick(item);
+                            }
+                            break;
+                    }
+                })
+                .create()
+                .show();
     }
 
     /**
@@ -178,6 +211,11 @@ public class InventoryQueryAdapter extends RecyclerView.Adapter<InventoryQueryAd
         this.multiSelectChangeListener = listener;
     }
 
+    // 新增：设置编辑监听
+    public void setOnItemEditListener(OnItemEditListener listener) {
+        this.editListener = listener;
+    }
+
     // 点击事件回调接口
     public interface OnItemClickListener {
         void onItemClick(Item item);
@@ -187,6 +225,11 @@ public class InventoryQueryAdapter extends RecyclerView.Adapter<InventoryQueryAd
     public interface OnMultiSelectChangeListener {
         void onSelectModeChanged(boolean isMultiSelect);
         void onSelectCountChanged(int count);
+    }
+
+    // 新增：编辑监听接口
+    public interface OnItemEditListener {
+        void onItemEdit(Item item);
     }
 
     // ViewHolder（完全匹配布局ID，无tv_count）

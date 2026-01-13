@@ -20,13 +20,24 @@ import java.util.Locale;
 
 public class ExpiredItemAdapter extends RecyclerView.Adapter<ExpiredItemAdapter.ItemViewHolder> {
     private List<Item> itemList;
+    private OnItemClickListener onItemClickListener; // 现在有对应的接口定义了
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.CHINA);
 
+    // 1. 定义点击事件回调接口
+    public interface OnItemClickListener {
+        void onItemClick(Item item);
+    }
+
+    // 2. 提供设置点击监听器的方法
+    public void setOnItemClickListener(OnItemClickListener listener) {
+        this.onItemClickListener = listener;
+    }
 
     // 添加无参构造方法（兼容Fragment调用）
     public ExpiredItemAdapter() {
         this.itemList = new ArrayList<>();
     }
+
     // 构造方法
     public ExpiredItemAdapter(List<Item> itemList) {
         this.itemList = itemList;
@@ -63,6 +74,13 @@ public class ExpiredItemAdapter extends RecyclerView.Adapter<ExpiredItemAdapter.
         holder.tvItemLocation.setText(item.getLocationId() == 0 ? "位置：未设置" : "位置：" + item.getLocationId());
         // 物品数量
         holder.tvItemCount.setText("数量：" +  item.getCount());
+
+        // 3. 设置列表项点击事件
+        holder.itemView.setOnClickListener(v -> {
+            if (onItemClickListener != null) {
+                onItemClickListener.onItemClick(item);
+            }
+        });
     }
 
     @Override

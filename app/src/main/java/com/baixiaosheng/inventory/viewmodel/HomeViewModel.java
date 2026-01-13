@@ -88,6 +88,20 @@ public class HomeViewModel extends ViewModel {
         }).start();
     }
 
+    // 新增：供Fragment调用的刷新方法
+    public void refreshExpiredItems(Long startDate, Long endDate) {
+        loadExpiredItems(startDate, endDate);
+    }
+
+    // 新增：标记物品删除的方法
+    public void markItemAsDeleted(Long itemId) {
+        if (mDbManager == null) {
+            return;
+        }
+        new Thread(() -> mDbManager.markItemAsDeleted(itemId)).start();
+    }
+
+
     // ViewModel销毁时清理资源，避免内存泄漏
     @Override
     protected void onCleared() {

@@ -29,6 +29,7 @@ import com.baixiaosheng.inventory.view.adapter.InventoryQueryAdapter;
 import com.baixiaosheng.inventory.database.entity.Item;
 import com.baixiaosheng.inventory.model.FilterCondition;
 import com.baixiaosheng.inventory.viewmodel.QueryViewModel;
+import com.baixiaosheng.inventory.view.activity.MainActivity;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -108,6 +109,9 @@ public class QueryFragment extends Fragment {
 
         // 设置适配器回调
         adapter.setOnItemClickListener(this::showItemOperationDialog);
+        // 新增：绑定编辑监听
+        adapter.setOnItemEditListener(this::jumpToEditFragment);
+
         adapter.setOnMultiSelectChangeListener(new InventoryQueryAdapter.OnMultiSelectChangeListener() {
             @Override
             public void onSelectModeChanged(boolean isMultiSelect) {
@@ -123,6 +127,26 @@ public class QueryFragment extends Fragment {
                 btnBatchDelete.setEnabled(count > 0);
             }
         });
+    }
+
+    // 新增：跳转到编辑模式的InputFragment
+    private void jumpToEditFragment(Item item) {
+        // 检查宿主Activity是否为MainActivity（避免类型转换异常）
+        if (getActivity() instanceof MainActivity) {
+            InputFragment editFragment = new InputFragment();
+            Bundle args = new Bundle();
+            args.putSerializable("edit_item", item); // Item已实现Serializable接口
+            editFragment.setArguments(args);
+            // 切换到编辑模式的InputFragment
+            ((MainActivity) getActivity()).switchFragment(editFragment);
+        } else {
+            Toast.makeText(getContext(), "跳转失败：当前上下文非MainActivity", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // 新增：供外部调用的刷新列表方法
+    public void refreshItemList() {
+        queryViewModel.queryItems(filterCondition);
     }
 
     // 绑定ViewModel数据
@@ -314,9 +338,9 @@ public class QueryFragment extends Fragment {
     // 显示物品操作弹窗
     private void showItemOperationDialog(Item item) {
         View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_item_operation, null);
-        Button btnViewDetail = dialogView.findViewById(R.id.btn_view_detail);
-        Button btnEditItem = dialogView.findViewById(R.id.btn_edit_item);
-        Button btnDeleteItem = dialogView.findViewById(R.id.btn_delete_item);
+        Button btnViewDetail = dialogView.findViewById(R.id.tv_view_detail);
+        Button btnEditItem = dialogView.findViewById(R.id.tv_edit);
+        Button btnDeleteItem = dialogView.findViewById(R.id.tv_delete);
 
         AlertDialog dialog = new AlertDialog.Builder(getContext())
                 .setView(dialogView)
@@ -329,10 +353,10 @@ public class QueryFragment extends Fragment {
             showItemDetailDialog(item);
         });
 
-        // 编辑（阶段7扩展，此处预留）
+        // 编辑（跳转到编辑Fragment）
         btnEditItem.setOnClickListener(v -> {
             dialog.dismiss();
-            Toast.makeText(getContext(), "编辑功能将在后续阶段实现", Toast.LENGTH_SHORT).show();
+            jumpToEditFragment(item);
         });
 
         // 删除
@@ -357,7 +381,7 @@ public class QueryFragment extends Fragment {
         detail.append("唯一标识：").append(item.getUuid()).append("\n");
         detail.append("父分类：").append(item.getParentCategoryId()).append("\n");
         detail.append("子分类：").append(item.getChildCategoryId()).append("\n");
-        detail.append("放置位置：").append(item.getLocationId() != 0 ? "未设置" : item.getLocationId()).append("\n");
+        detail.append("放置位置：").append(item.getLocationId() == 0 ? "未设置" : item.getLocationId()).append("\n");
         detail.append("数量：").append(item.getCount()).append("\n");
         detail.append("过期时间：").append(item.getValidTime() != 0 ? dateFormat.format(item.getValidTime()) : "无").append("\n");
         detail.append("物品说明：").append(item.getRemark() != null ? item.getRemark() : "无").append("\n");

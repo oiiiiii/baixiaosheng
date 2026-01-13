@@ -260,6 +260,57 @@ public class QueryViewModel extends AndroidViewModel {
         return locationList;
     }
 
+    // 根据ID查询物品（返回LiveData，适配Activity观察）
+    public LiveData<Item> getItemById(long itemId) {
+        MutableLiveData<Item> itemLiveData = new MutableLiveData<>();
+        executor.execute(() -> {
+            Item item = itemDao.getItemById(itemId);
+            itemLiveData.postValue(item);
+        });
+        return itemLiveData;
+    }
+
+    // 根据ID查询分类（返回LiveData）
+    public LiveData<Category> getCategoryById(long categoryId) {
+        MutableLiveData<Category> categoryLiveData = new MutableLiveData<>();
+        executor.execute(() -> {
+            Category category = categoryDao.getCategoryById(categoryId);
+            categoryLiveData.postValue(category);
+        });
+        return categoryLiveData;
+    }
+
+    // 根据ID查询位置（返回LiveData）
+    public LiveData<Location> getLocationById(long locationId) {
+        MutableLiveData<Location> locationLiveData = new MutableLiveData<>();
+        executor.execute(() -> {
+            Location location = locationDao.getLocationById(locationId);
+            locationLiveData.postValue(location);
+        });
+        return locationLiveData;
+    }
+
+    // 标记物品为已删除（补充ItemDetailActivity调用的markItemAsDeleted方法）
+    public void markItemAsDeleted(long itemId) {
+        executor.execute(() -> {
+            Item item = itemDao.getItemById(itemId);
+            if (item != null) {
+                item.setIsDeleted(1);
+                item.setUpdateTime(System.currentTimeMillis());
+                itemDao.updateItem(item);
+
+                // 插入回收站记录
+                Recycle recycle = new Recycle();
+                recycle.setItemId(item.getId());
+                recycle.setItemUuid(item.getUuid());
+                recycle.setItemName(item.getName());
+                recycle.setDeleteTime(System.currentTimeMillis());
+                recycle.setDeleteReason("详情页删除");
+                recycleDao.insertRecycle(recycle);
+            }
+        });
+    }
+
     // 释放线程池
     @Override
     protected void onCleared() {

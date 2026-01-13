@@ -8,6 +8,9 @@ import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Environment;
 import android.util.Log;
+import android.widget.ImageView;
+import android.widget.Toast;
+
 import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -33,6 +36,28 @@ public class ImageUtils {
             storageDir.mkdirs();
         }
         return File.createTempFile(fileName, ".jpg", storageDir);
+    }
+
+    /**
+     * 加载图片到ImageView（适配ItemDetailActivity）
+     */
+    public static void loadImage(String filePath, ImageView imageView) {
+        Bitmap bitmap = decodeImage(filePath);
+        if (bitmap != null) {
+            imageView.setImageBitmap(bitmap);
+        } else {
+            // 设置默认占位图（可选，根据项目资源调整）
+            // imageView.setImageResource(R.drawable.ic_image_placeholder);
+        }
+    }
+
+    /**
+     * 预览图片（简单实现，可根据需求扩展）
+     */
+    public static void showImagePreview(Context context, String filePath) {
+        // 示例：可跳转到图片预览Activity，此处先Toast提示（需根据项目完善）
+        Toast.makeText(context, "预览图片：" + filePath, Toast.LENGTH_SHORT).show();
+        // 完整实现可参考：创建新Activity展示大图
     }
 
     /**

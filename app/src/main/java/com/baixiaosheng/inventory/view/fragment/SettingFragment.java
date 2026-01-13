@@ -13,19 +13,14 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.baixiaosheng.inventory.R;
-import com.baixiaosheng.inventory.view.adapter.SettingAdapter;
 import com.baixiaosheng.inventory.model.SettingEntry;
-import com.baixiaosheng.inventory.view.activity.AboutActivity;
-import com.baixiaosheng.inventory.view.activity.CategoryManageActivity;
-import com.baixiaosheng.inventory.view.activity.LocationManageActivity;
-import com.baixiaosheng.inventory.view.activity.RecycleActivity;
+import com.baixiaosheng.inventory.utils.DefaultDataUtils;
+import com.baixiaosheng.inventory.view.adapter.SettingAdapter;
+import com.baixiaosheng.inventory.view.activity.DataManageActivity;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 
-/**
- * 设置页面Fragment
- */
 public class SettingFragment extends Fragment {
 
     private RecyclerView rvSettingList;
@@ -35,55 +30,60 @@ public class SettingFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_setting, container, false);
-    }
+        View view = inflater.inflate(R.layout.fragment_setting, container, false);
 
-    @Override
-    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
+        // 初始化默认数据（仅首次启动时执行，内部已做重复校验）
+        DefaultDataUtils.initAllDefaultData(getContext());
+
         initView(view);
-        initData();
-        initListener();
+        initSettingEntries();
+        initAdapter();
+        return view;
     }
 
     private void initView(View view) {
         rvSettingList = view.findViewById(R.id.rv_setting_list);
-        // 设置布局管理器
         rvSettingList.setLayoutManager(new LinearLayoutManager(getContext()));
     }
 
-    private void initData() {
-        // 初始化设置项列表
-        entryList = Arrays.asList(SettingEntry.values());
-        settingAdapter = new SettingAdapter(entryList, this::onItemClick);
+    private void initSettingEntries() {
+        entryList = new ArrayList<>();
+        // 直接使用枚举常量，无需new
+        entryList.add(SettingEntry.CATEGORY_MANAGE);
+        entryList.add(SettingEntry.LOCATION_MANAGE);
+        entryList.add(SettingEntry.RECYCLE_BIN);
+
+        // 新增数据管理入口
+        entryList.add(SettingEntry.DATA_MANAGE);
+        entryList.add(SettingEntry.ABOUT);
+    }
+
+    private void initAdapter() {
+        // 修复：构造Adapter时同时传入entryList和点击事件回调
+        settingAdapter = new SettingAdapter(entryList, new SettingAdapter.OnItemClickListener() {
+            @Override
+            public void onItemClick(SettingEntry entry) {
+                // 处理条目点击逻辑
+                switch (entry) {
+                    case CATEGORY_MANAGE:
+                        // 原有逻辑
+                        break;
+                    case LOCATION_MANAGE:
+                        // 原有逻辑
+                        break;
+                    case RECYCLE_BIN:
+                        // 原有逻辑
+                        break;
+                    case ABOUT:
+                        // 原有逻辑
+                        break;
+                    case DATA_MANAGE:
+                        // 跳转数据管理页面
+                        startActivity(new Intent(getContext(), DataManageActivity.class));
+                        break;
+                }
+            }
+        });
         rvSettingList.setAdapter(settingAdapter);
-    }
-
-    private void initListener() {
-        // 暂无额外监听
-    }
-
-    /**
-     * 列表项点击事件
-     */
-    private void onItemClick(SettingEntry entry) {
-        Intent intent = null;
-        switch (entry) {
-            case CATEGORY_MANAGE:
-                intent = new Intent(getContext(), CategoryManageActivity.class);
-                break;
-            case LOCATION_MANAGE:
-                intent = new Intent(getContext(), LocationManageActivity.class);
-                break;
-            case RECYCLE_BIN:
-                intent = new Intent(getContext(), RecycleActivity.class);
-                break;
-            case ABOUT:
-                intent = new Intent(getContext(), AboutActivity.class);
-                break;
-        }
-        if (intent != null) {
-            startActivity(intent);
-        }
     }
 }

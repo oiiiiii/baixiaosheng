@@ -35,6 +35,10 @@ public interface LocationDao {
     @Query("SELECT * FROM location WHERE id = :id")
     Location getLocationById(long id);
 
+    // 新增：根据名称精确查询位置（供导入去重使用）
+    @Query("SELECT * FROM location WHERE name = :name")
+    List<Location> getLocationByName(String name);
+
     // 查询所有位置
     @Query("SELECT * FROM location ORDER BY createTime DESC")
     List<Location> getAllLocations();

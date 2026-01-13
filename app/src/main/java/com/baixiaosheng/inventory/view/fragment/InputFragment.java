@@ -35,7 +35,7 @@ import java.util.Locale;
 import java.util.UUID;
 
 /**
- * 录入页Fragment（修复所有闪退问题：类型转换、空指针、资源缺失、权限适配）
+ * 录入页Fragment（支持编辑模式 + 修复所有闪退问题：类型转换、空指针、资源缺失、权限适配）
  */
 public class InputFragment extends Fragment {
     // 请求码
@@ -58,6 +58,10 @@ public class InputFragment extends Fragment {
     // 日期格式化
     private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.CHINA);
 
+    // 新增：编辑模式相关变量
+    private boolean isEditMode = false; // 是否为编辑模式
+    private Item mEditItem; // 编辑的物品对象
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -66,7 +70,101 @@ public class InputFragment extends Fragment {
         initViewModel();
         initListener();
         initSpinnerData(); // 初始化Spinner默认数据，避免空指针
+        // 新增：接收编辑参数，初始化编辑模式
+        receiveEditParams();
         return view;
+    }
+
+    /**
+     * 新增：接收编辑参数（从QueryFragment传递的物品对象）
+     */
+    private void receiveEditParams() {
+        Bundle args = getArguments();
+        if (args != null && args.containsKey("edit_item")) {
+            isEditMode = true;
+            mEditItem = (Item) args.getSerializable("edit_item");
+            // 回填数据到表单
+            fillFormData();
+            // 修改保存按钮文字
+            btnSave.setText("保存修改");
+        }
+    }
+
+    /**
+     * 新增：表单数据回填（编辑模式下）
+     */
+    private void fillFormData() {
+        if (mEditItem == null) return;
+
+        // 1. 基础字段回填
+        etName.setText(mEditItem.getName());
+        etQuantity.setText(String.valueOf(mEditItem.getCount()));
+        etDescription.setText(mEditItem.getRemark());
+
+        // 2. 有效期回填
+        if (mEditItem.getValidTime() > 0) {
+            etExpireDate.setText(sdf.format(new Date(mEditItem.getValidTime())));
+        }
+
+        // 3. 分类、位置Spinner回填（根据ID匹配选项）
+        // 父分类回填
+        fillSpinnerByValue(spParentCategory, getCategoryNameById(mEditItem.getParentCategoryId()));
+        // 子分类回填
+        fillSpinnerByValue(spChildCategory, getCategoryNameById(mEditItem.getChildCategoryId()));
+        // 位置回填
+        fillSpinnerByValue(spLocation, getLocationNameById(mEditItem.getLocationId()));
+
+        // 4. 图片预览区回填
+        if (mEditItem.getImagePaths() != null && !mEditItem.getImagePaths().isEmpty()) {
+            // 清空原有图片列表，避免叠加
+            mImagePaths.clear();
+            llImagePreview.removeAllViews();
+            // 分割图片路径并添加预览
+            String[] paths = mEditItem.getImagePaths().split(",");
+            for (String path : paths) {
+                if (!path.isEmpty()) {
+                    mImagePaths.add(path);
+                    previewImage(path); // 复用原有预览逻辑
+                }
+            }
+        }
+    }
+
+    /**
+     * 辅助方法：根据分类/位置ID获取名称（适配Spinner回填）
+     */
+    private String getCategoryNameById(long id) {
+        switch ((int) id) {
+            case 1: return "食品";
+            case 2: return "日用品";
+            case 3: return "电子产品";
+            default: return "未分类"; // 父分类默认 / 子分类默认"无"
+        }
+    }
+
+    /**
+     * 辅助方法：根据位置ID获取名称
+     */
+    private String getLocationNameById(long id) {
+        switch ((int) id) {
+            case 1: return "客厅";
+            case 2: return "卧室";
+            case 3: return "厨房";
+            default: return "未指定";
+        }
+    }
+
+    /**
+     * 辅助方法：根据值设置Spinner选中项
+     */
+    private void fillSpinnerByValue(Spinner spinner, String value) {
+        ArrayAdapter<String> adapter = (ArrayAdapter<String>) spinner.getAdapter();
+        for (int i = 0; i < adapter.getCount(); i++) {
+            if (adapter.getItem(i).equals(value)) {
+                spinner.setSelection(i);
+                break;
+            }
+        }
     }
 
     /**
@@ -100,8 +198,12 @@ public class InputFragment extends Fragment {
         // 观察保存结果
         mInputViewModel.getSaveSuccess().observe(getViewLifecycleOwner(), success -> {
             if (success) {
-                Toast.makeText(getContext(), "保存成功", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getContext(), isEditMode ? "修改保存成功" : "保存成功", Toast.LENGTH_SHORT).show();
                 clearForm();
+                // 编辑模式下保存成功后返回查询页
+                if (isEditMode) {
+                    requireActivity().getSupportFragmentManager().popBackStack();
+                }
             } else {
                 Toast.makeText(getContext(), "保存失败，请重试", Toast.LENGTH_SHORT).show();
             }
@@ -115,6 +217,9 @@ public class InputFragment extends Fragment {
         // 父分类默认数据
         List<String> parentCats = new ArrayList<>();
         parentCats.add("未分类");
+        parentCats.add("食品");
+        parentCats.add("日用品");
+        parentCats.add("电子产品");
         ArrayAdapter<String> parentAdapter = new ArrayAdapter<>(requireContext(),
                 android.R.layout.simple_spinner_item, parentCats);
         parentAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -123,6 +228,9 @@ public class InputFragment extends Fragment {
         // 子分类默认数据
         List<String> childCats = new ArrayList<>();
         childCats.add("无");
+        childCats.add("食品");
+        childCats.add("日用品");
+        childCats.add("电子产品");
         ArrayAdapter<String> childAdapter = new ArrayAdapter<>(requireContext(),
                 android.R.layout.simple_spinner_item, childCats);
         childAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -131,6 +239,9 @@ public class InputFragment extends Fragment {
         // 位置默认数据
         List<String> locations = new ArrayList<>();
         locations.add("未指定");
+        locations.add("客厅");
+        locations.add("卧室");
+        locations.add("厨房");
         ArrayAdapter<String> locationAdapter = new ArrayAdapter<>(requireContext(),
                 android.R.layout.simple_spinner_item, locations);
         locationAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -235,7 +346,7 @@ public class InputFragment extends Fragment {
     }
 
     /**
-     * 表单校验并保存（修复所有空指针和类型转换问题）
+     * 表单校验并保存（区分新增/编辑模式 + 修复所有空指针和类型转换问题）
      */
     private void validateAndSave() {
         // 1. 基础校验
@@ -286,19 +397,34 @@ public class InputFragment extends Fragment {
         String location = spLocation.getSelectedItem() != null ?
                 spLocation.getSelectedItem().toString() : "未指定";
 
-        // 5. 构建Item对象（修复字段类型匹配）
-        Item item = new Item();
-        item.setUuid(UUID.randomUUID().toString()); // 唯一标识
-        item.setName(name);
-        item.setParentCategoryId(getCategoryId(parentCat)); // 名称转ID
-        item.setChildCategoryId(getCategoryId(childCat));
-        item.setLocationId(getLocationId(location));
-        item.setCount(quantity);
-        item.setValidTime(validTime);
-        item.setRemark(etDescription.getText().toString().trim());
-        item.setIsDeleted(0); // 未删除
-        item.setCreateTime(System.currentTimeMillis());
-        item.setUpdateTime(System.currentTimeMillis());
+        // 5. 构建Item对象（区分新增/编辑模式）
+        Item item;
+        if (isEditMode) {
+            // 编辑模式：复用原有物品对象，仅更新字段
+            item = mEditItem;
+            item.setName(name);
+            item.setParentCategoryId(getCategoryId(parentCat));
+            item.setChildCategoryId(getCategoryId(childCat));
+            item.setLocationId(getLocationId(location));
+            item.setCount(quantity);
+            item.setValidTime(validTime);
+            item.setRemark(etDescription.getText().toString().trim());
+            item.setUpdateTime(System.currentTimeMillis()); // 仅更新修改时间
+        } else {
+            // 新增模式：创建新对象
+            item = new Item();
+            item.setUuid(UUID.randomUUID().toString()); // 唯一标识
+            item.setName(name);
+            item.setParentCategoryId(getCategoryId(parentCat));
+            item.setChildCategoryId(getCategoryId(childCat));
+            item.setLocationId(getLocationId(location));
+            item.setCount(quantity);
+            item.setValidTime(validTime);
+            item.setRemark(etDescription.getText().toString().trim());
+            item.setIsDeleted(0); // 未删除
+            item.setCreateTime(System.currentTimeMillis());
+            item.setUpdateTime(System.currentTimeMillis());
+        }
 
         // 6. 拼接图片路径（处理空列表）
         StringBuilder imagePaths = new StringBuilder();
@@ -310,8 +436,12 @@ public class InputFragment extends Fragment {
         }
         item.setImagePaths(imagePaths.toString());
 
-        // 7. 保存数据
-        mInputViewModel.saveItem(item);
+        // 7. 保存/更新数据（区分新增/编辑）
+        if (isEditMode) {
+            mInputViewModel.updateItem(item); // 编辑：调用更新接口
+        } else {
+            mInputViewModel.saveItem(item); // 新增：调用保存接口
+        }
     }
 
     /**
@@ -322,7 +452,7 @@ public class InputFragment extends Fragment {
             case "食品": return 1;
             case "日用品": return 2;
             case "电子产品": return 3;
-            default: return 0; // 未分类
+            default: return 0; // 未分类/无
         }
     }
 
@@ -351,6 +481,12 @@ public class InputFragment extends Fragment {
         spLocation.setSelection(0);
         mImagePaths.clear();
         llImagePreview.removeAllViews();
+        // 编辑模式清空后重置为新增模式
+        if (isEditMode) {
+            isEditMode = false;
+            mEditItem = null;
+            btnSave.setText("保存");
+        }
     }
 
     /**

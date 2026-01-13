@@ -17,7 +17,7 @@ import com.baixiaosheng.inventory.view.fragment.SettingFragment;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 /**
- * 主Activity（底部Tab框架核心）
+ * 主Activity（底部Tab框架核心 + 支持Fragment回退）
  * 实现BottomNavigationView与4个Fragment的切换逻辑
  */
 public class MainActivity extends AppCompatActivity {
@@ -63,6 +63,9 @@ public class MainActivity extends AppCompatActivity {
         bottomNavigation.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
             @Override
             public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+                // 清空回退栈，避免Tab切换后回退到编辑页
+                getSupportFragmentManager().popBackStackImmediate(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
+
                 // 根据点击的Tab切换对应的Fragment
                 int itemId = item.getItemId();
                 if (itemId == R.id.nav_home) {
@@ -84,32 +87,61 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Fragment切换核心逻辑（保证切换不重建、数据不丢失）
-     * @param targetFragment 要切换的目标Fragment
+     * 切换Fragment（复用实例，避免重复创建）
+     * 改为public权限，允许外部Fragment调用
      */
-    private void switchFragment(Fragment targetFragment) {
-        // 如果点击的是当前显示的Fragment，直接返回
+    public void switchFragment(Fragment targetFragment) {
         if (currentFragment == targetFragment) {
-            return;
+            return; // 同一Fragment，无需切换
         }
 
-        FragmentManager fragmentManager = getSupportFragmentManager();
-        FragmentTransaction transaction = fragmentManager.beginTransaction();
-
-        // 1. 如果是首次切换（当前Fragment未添加），直接添加目标Fragment
-        if (!currentFragment.isAdded()) {
-            transaction.add(R.id.fragment_container, targetFragment).commit();
+        FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+        // 隐藏当前Fragment
+        if (currentFragment != null) {
+            transaction.hide(currentFragment);
+        }
+        // 显示目标Fragment（未添加则添加）
+        if (!targetFragment.isAdded()) {
+            transaction.add(R.id.fragment_container, targetFragment);
         } else {
-            // 2. 如果目标Fragment未添加到容器中，先添加
-            if (!targetFragment.isAdded()) {
-                transaction.hide(currentFragment).add(R.id.fragment_container, targetFragment).commit();
-            } else {
-                // 3. 如果目标Fragment已添加，直接显示，隐藏当前Fragment
-                transaction.hide(currentFragment).show(targetFragment).commit();
-            }
+            transaction.show(targetFragment);
         }
-
-        // 更新当前Fragment为目标Fragment
+        transaction.commit();
+        // 更新当前Fragment
         currentFragment = targetFragment;
+    }
+
+    /**
+     * 重载：支持带回退栈的Fragment切换（适配编辑页跳转）
+     * @param targetFragment 目标Fragment
+     * @param addToBackStack 是否加入回退栈
+     */
+    public void switchFragment(Fragment targetFragment, boolean addToBackStack) {
+        FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+        // 隐藏当前Fragment
+        if (currentFragment != null) {
+            transaction.hide(currentFragment);
+        }
+        // 添加目标Fragment（编辑页每次新建，不复用）
+        transaction.add(R.id.fragment_container, targetFragment);
+        // 如果需要回退，加入回退栈
+        if (addToBackStack) {
+            transaction.addToBackStack(null);
+        }
+        transaction.commit();
+        // 更新当前Fragment
+        currentFragment = targetFragment;
+    }
+
+    // 重写返回键，支持Fragment回退栈
+    @Override
+    public void onBackPressed() {
+        if (getSupportFragmentManager().getBackStackEntryCount() > 0) {
+            // 有回退栈时，返回上一个Fragment
+            getSupportFragmentManager().popBackStack();
+        } else {
+            // 无回退栈时，执行默认返回逻辑
+            super.onBackPressed();
+        }
     }
 }

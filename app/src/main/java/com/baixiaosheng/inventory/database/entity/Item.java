@@ -4,6 +4,7 @@ import androidx.room.Entity;
 import androidx.room.Ignore;
 import androidx.room.PrimaryKey;
 
+import java.io.Serializable;
 import java.util.UUID;
 
 /**
@@ -23,7 +24,7 @@ import java.util.UUID;
  * isDeleted：删除标记（0=未删除，1=已删除，默认0）
  */
 @Entity(tableName = "item")
-public class Item {
+public class Item implements Serializable { // 新增Serializable接口
     @PrimaryKey(autoGenerate = true)
     private long id;
     private String uuid; // 唯一标识，创建时生成UUID
