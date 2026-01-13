@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true">
+
+    <!-- 多选复选框（默认隐藏，多选模式显示） -->
+    <CheckBox
+        android:id="@+id/cb_select"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:visibility="gone"
+        android:layout_marginBottom="4dp"/>
+
+    <!-- 物品名称 + UUID -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tv_item_name"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="物品名称"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_item_uuid"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="UUID"
+            android:textSize="12sp"
+            android:textColor="@color/gray_500" />
+    </LinearLayout>
+
+    <!-- 分类 + 位置 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="分类："
+            android:textSize="14sp"
+            android:textColor="@color/gray_600" />
+
+        <TextView
+            android:id="@+id/tv_item_category"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="父分类/子分类"
+            android:textSize="14sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="位置："
+            android:textSize="14sp"
+            android:textColor="@color/gray_600" />
+
+        <TextView
+            android:id="@+id/tv_item_location"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="未设置"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <!-- 数量 + 过期时间 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="数量："
+            android:textSize="14sp"
+            android:textColor="@color/gray_600" />
+
+        <TextView
+            android:id="@+id/tv_item_quantity"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="0"
+            android:textSize="14sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="过期时间："
+            android:textSize="14sp"
+            android:textColor="@color/gray_600" />
+
+        <TextView
+            android:id="@+id/tv_item_expire"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="无"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <!-- 物品说明（可选） -->
+    <TextView
+        android:id="@+id/tv_item_desc"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="物品说明"
+        android:textSize="14sp"
+        android:textColor="@color/gray_600"
+        android:maxLines="2"
+        android:ellipsize="end"
+        android:visibility="gone"/>
+
+</LinearLayout>

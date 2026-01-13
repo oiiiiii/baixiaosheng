@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <!-- 顶部批量操作栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="16dp"
+        android:background="@color/white">
+
+        <Button
+            android:id="@+id/btn_restore_selected"
+            android:layout_width="100dp"
+            android:layout_height="wrap_content"
+            android:text="还原选中" />
+
+        <Button
+            android:id="@+id/btn_delete_selected"
+            android:layout_width="100dp"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="10dp"
+            android:text="彻底删除"
+            android:textColor="@color/red" />
+
+    </LinearLayout>
+
+    <!-- 回收站列表 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_recycle_list"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/white"
+        android:padding="10dp" />
+
+</LinearLayout>

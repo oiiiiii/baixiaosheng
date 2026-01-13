@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- 搜索框 -->
+    <androidx.appcompat.widget.SearchView
+        android:id="@+id/sv_search"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:hint="搜索物品名称"
+        app:iconifiedByDefault="false"
+        app:queryHint="输入物品名称模糊搜索" />
+
+    <!-- 可折叠筛选区 -->
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="4dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <!-- 筛选区标题（点击折叠/展开） -->
+            <LinearLayout
+                android:id="@+id/ll_filter_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="8dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="高级筛选"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <ImageView
+                    android:id="@+id/iv_filter_arrow"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_baseline_arrow_drop_down_24" />
+            </LinearLayout>
+
+            <!-- 筛选内容区（默认展开） -->
+            <LinearLayout
+                android:id="@+id/ll_filter_content"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingTop="8dp">
+
+                <!-- 父分类筛选 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="80dp"
+                        android:layout_height="wrap_content"
+                        android:text="父分类："
+                        android:textSize="14sp" />
+
+                    <Spinner
+                        android:id="@+id/sp_parent_category"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/spinner_bg"
+                        android:padding="8dp" />
+                </LinearLayout>
+
+                <!-- 子分类筛选 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="80dp"
+                        android:layout_height="wrap_content"
+                        android:text="子分类："
+                        android:textSize="14sp" />
+
+                    <Spinner
+                        android:id="@+id/sp_child_category"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/spinner_bg"
+                        android:padding="8dp" />
+                </LinearLayout>
+
+                <!-- 位置筛选 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="80dp"
+                        android:layout_height="wrap_content"
+                        android:text="放置位置："
+                        android:textSize="14sp" />
+
+                    <Spinner
+                        android:id="@+id/sp_location"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/spinner_bg"
+                        android:padding="8dp" />
+                </LinearLayout>
+
+                <!-- 数量范围筛选 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="80dp"
+                        android:layout_height="wrap_content"
+                        android:text="数量范围："
+                        android:textSize="14sp" />
+
+                    <EditText
+                        android:id="@+id/et_quantity_min"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="1"
+                        android:hint="最小值"
+                        android:inputType="number"
+                        android:padding="8dp"
+                        android:background="@drawable/et_bg" />
+
+                    <TextView
+                        android:layout_width="20dp"
+                        android:layout_height="wrap_content"
+                        android:text="-"
+                        android:gravity="center" />
+
+                    <EditText
+                        android:id="@+id/et_quantity_max"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="1"
+                        android:hint="最大值"
+                        android:inputType="number"
+                        android:padding="8dp"
+                        android:background="@drawable/et_bg" />
+                </LinearLayout>
+
+                <!-- 过期时间范围筛选 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="80dp"
+                        android:layout_height="wrap_content"
+                        android:text="过期时间："
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:id="@+id/tv_expire_start"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="1"
+                        android:hint="开始日期"
+                        android:gravity="center_vertical"
+                        android:padding="8dp"
+                        android:background="@drawable/et_bg" />
+
+                    <TextView
+                        android:layout_width="20dp"
+                        android:layout_height="wrap_content"
+                        android:text="-"
+                        android:gravity="center" />
+
+                    <TextView
+                        android:id="@+id/tv_expire_end"
+                        android:layout_height="40dp"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:hint="结束日期"
+                        android:gravity="center_vertical"
+                        android:padding="8dp"
+                        android:background="@drawable/et_bg" />
+                </LinearLayout>
+
+                <!-- 筛选按钮 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="right">
+
+                    <Button
+                        android:id="@+id/btn_reset_filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:text="重置"
+                        android:textSize="14sp"
+                        android:layout_marginRight="8dp"
+                        android:backgroundTint="@color/gray_500" />
+
+                    <Button
+                        android:id="@+id/btn_apply_filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:text="应用筛选"
+                        android:textSize="14sp"
+                        android:backgroundTint="@color/colorPrimary" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- 批量操作区（默认隐藏，多选时显示） -->
+    <LinearLayout
+        android:id="@+id/ll_batch_operate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="8dp"
+        android:background="@color/colorPrimaryLight"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tv_selected_count"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="已选择：0 项"
+            android:textColor="@color/black"
+            android:textSize="14sp" />
+
+        <Button
+            android:id="@+id/btn_batch_delete"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="批量删除"
+            android:textSize="14sp"
+            android:backgroundTint="@color/red_500" />
+    </LinearLayout>
+
+    <!-- 物品列表 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_inventory_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@color/white" />
+
+    <!-- 空列表提示 -->
+    <TextView
+        android:id="@+id/tv_empty_tip"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:text="暂无物品数据"
+        android:textSize="16sp"
+        android:textColor="@color/gray_600"
+        android:gravity="center"
+        android:visibility="gone" />
+
+</LinearLayout>

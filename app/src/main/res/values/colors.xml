@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 基础黑白 -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Teal 青绿色系（Material Design 标准） -->
+    <color name="teal_700">#FF00796B</color> <!-- 深青绿色 -->
+
+    <!-- 主题主色（沿用teal_700，也可自定义） -->
+    <color name="colorPrimary">#FF00796B</color> <!-- 主色 -->
+    <color name="colorPrimaryLight">#FF48A999</color> <!-- 主色浅版 -->
+
+    <!-- 红色系 -->
+    <color name="red">#FF0000</color> <!-- 纯红（替代系统私有red） -->
+    <color name="red_500">#FFF44336</color> <!-- Material 标准红（常用） -->
+
+    <!-- 灰色系（从浅到深） -->
+    <color name="gray_300">#FFE0E0E0</color> <!-- 浅灰（边框/分割线） -->
+    <color name="gray_500">#FF9E9E9E</color> <!-- 中灰（次要文字） -->
+    <color name="gray_600">#FF757575</color> <!-- 深灰（备注文字） -->
+    <color name="darker_gray">#FF616161</color> <!-- 更深灰（禁用文字） -->
+
+    <!-- 蓝色系 -->
+    <color name="blue_500">#FF2196F3</color> <!-- Material 标准蓝（按钮/链接） -->
+</resources>

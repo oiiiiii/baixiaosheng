@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- 物品名称（第一个子控件，无marginTop） -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="物品名称 *"
+                android:textSize="16sp"
+                android:textColor="@color/black"/>
+            <EditText
+                android:id="@+id/et_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="请输入物品名称"
+                android:inputType="textCapWords"
+                android:maxLines="1"/>
+        </LinearLayout>
+
+        <!-- 父分类（添加marginTop:12dp） -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="父分类"
+                android:textSize="16sp"
+                android:textColor="@color/black"/>
+            <Spinner
+                android:id="@+id/sp_parent_category"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="请选择父分类"/>
+        </LinearLayout>
+
+        <!-- 子分类（添加marginTop:12dp） -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="子分类"
+                android:textSize="16sp"
+                android:textColor="@color/black"/>
+            <Spinner
+                android:id="@+id/sp_child_category"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="请选择子分类"/>
+        </LinearLayout>
+
+        <!-- 有效期（添加marginTop:12dp） -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="有效期"
+                android:textSize="16sp"
+                android:textColor="@color/black"/>
+            <EditText
+                android:id="@+id/et_expire_date"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="请选择有效期"
+                android:focusable="false"
+                android:clickable="true"/>
+        </LinearLayout>
+
+        <!-- 放置位置（添加marginTop:12dp） -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="放置位置"
+                android:textSize="16sp"
+                android:textColor="@color/black"/>
+            <Spinner
+                android:id="@+id/sp_location"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="请选择放置位置"/>
+        </LinearLayout>
+
+        <!-- 物品数量（添加marginTop:12dp） -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="物品数量"
+                android:textSize="16sp"
+                android:textColor="@color/black"/>
+            <EditText
+                android:id="@+id/et_quantity"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="请输入物品数量"
+                android:inputType="numberDecimal"/>
+        </LinearLayout>
+
+        <!-- 物品图片（添加marginTop:12dp） -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="物品图片"
+                android:textSize="16sp"
+                android:textColor="@color/black"/>
+
+            <!-- 图片操作按钮（替换gap=8dp为marginLeft） -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <Button
+                    android:id="@+id/btn_take_photo"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="拍照"/>
+                <Button
+                    android:id="@+id/btn_choose_photo"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginLeft="8dp"
+                    android:text="选择图片"/>
+            </LinearLayout>
+
+            <!-- 图片预览区（替换gap=8dp，后续通过代码给子View加marginLeft） -->
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp">
+                <LinearLayout
+                    android:id="@+id/ll_image_preview"
+                    android:layout_width="wrap_content"
+                    android:layout_height="120dp"
+                    android:orientation="horizontal"/>
+            </HorizontalScrollView>
+        </LinearLayout>
+
+        <!-- 物品说明（添加marginTop:12dp） -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="物品说明"
+                android:textSize="16sp"
+                android:textColor="@color/black"/>
+            <EditText
+                android:id="@+id/et_description"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="请输入物品说明（选填）"
+                android:maxLines="5"/>
+        </LinearLayout>
+
+        <!-- 保存按钮（添加marginTop:16dp，原属性保留） -->
+        <Button
+            android:id="@+id/btn_save"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="保存物品信息"
+            android:layout_marginTop="16dp"
+            android:backgroundTint="@color/teal_700"
+            android:textColor="@color/white"/>
+
+    </LinearLayout>
+</ScrollView>

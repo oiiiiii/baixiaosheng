@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="32dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="百晓生库存管理系统"
+        android:textSize="24sp"
+        android:textColor="@color/black" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:text="版本号：1.0.0"
+        android:textSize="18sp"
+        android:textColor="@color/darker_gray" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="包名：com.baixiaosheng.inventory"
+        android:textSize="16sp"
+        android:textColor="@color/darker_gray" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="兼容版本：Android 7.0+"
+        android:textSize="16sp"
+        android:textColor="@color/darker_gray" />
+
+    <!-- 预留检查更新按钮 -->
+    <Button
+        android:id="@+id/btn_check_update"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="30dp"
+        android:text="检查更新" />
+
+    <!-- 预留使用说明按钮 -->
+    <Button
+        android:id="@+id/btn_usage_guide"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="使用说明" />
+
+</LinearLayout>
