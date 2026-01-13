@@ -6,8 +6,10 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -42,6 +44,8 @@ public class InputFragment extends Fragment {
     private static final int REQUEST_TAKE_PHOTO = 101;
     private static final int REQUEST_CHOOSE_PHOTO = 102;
     private static final int PERMISSION_REQUEST_CODE = 103;
+    private static final int PERMISSION_REQUEST_STORAGE = 104; // 单独的存储权限请求码
+    private static final int PERMISSION_REQUEST_WRITE_STORAGE = 105; // 写入存储权限请求码
 
     // 视图控件（修复类型转换错误）
     private EditText etName, etExpireDate, etQuantity, etDescription;
@@ -61,6 +65,8 @@ public class InputFragment extends Fragment {
     // 新增：编辑模式相关变量
     private boolean isEditMode = false; // 是否为编辑模式
     private Item mEditItem; // 编辑的物品对象
+    // 新增：标记当前权限请求对应的操作（拍照/选图）
+    private String mPermissionAction;
 
     @Nullable
     @Override
@@ -302,6 +308,7 @@ public class InputFragment extends Fragment {
     private void takePhoto() {
         // 检查相机权限
         if (!PermissionUtils.hasCameraPermission(requireContext())) {
+            mPermissionAction = "take_photo"; // 标记当前是拍照操作
             PermissionUtils.requestCameraPermission(this, PERMISSION_REQUEST_CODE);
             return;
         }
@@ -331,12 +338,22 @@ public class InputFragment extends Fragment {
     }
 
     /**
-     * 从相册选择图片（修复Android 10+路径适配）
+     * 从相册选择图片（修复Android 10+路径适配 + 权限申请逻辑）
      */
+
+    // 优化choosePhoto方法，增加写入权限检查（Android 9及以下）
     private void choosePhoto() {
-        // 检查存储权限
+        // 检查读取存储权限
         if (!PermissionUtils.hasStoragePermission(requireContext())) {
-            PermissionUtils.requestStoragePermission(this, PERMISSION_REQUEST_CODE);
+            mPermissionAction = "choose_photo";
+            PermissionUtils.requestStoragePermission(this, PERMISSION_REQUEST_STORAGE);
+            return;
+        }
+
+        // 检查写入存储权限（仅Android 9及以下）
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P && !PermissionUtils.hasWriteStoragePermission(requireContext())) {
+            mPermissionAction = "choose_photo";
+            PermissionUtils.requestWriteStoragePermission(this, PERMISSION_REQUEST_WRITE_STORAGE);
             return;
         }
 
@@ -571,11 +588,68 @@ public class InputFragment extends Fragment {
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == PERMISSION_REQUEST_CODE) {
-            boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
-            if (!granted) {
-                Toast.makeText(getContext(), "权限被拒绝，无法完成操作", Toast.LENGTH_SHORT).show();
+        boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+
+        // 处理存储权限（选图）
+        if (requestCode == PERMISSION_REQUEST_STORAGE) {
+            if (granted) {
+                // 权限授予，重新执行选图操作
+                choosePhoto();
+            } else {
+                // 权限被拒绝
+                if (shouldShowRequestPermissionRationale(permissions[0])) {
+                    // 用户只是拒绝，未勾选「不再询问」，提示需要权限
+                    Toast.makeText(getContext(), "存储权限被拒绝，无法从相册选择图片", Toast.LENGTH_SHORT).show();
+                } else {
+                    // 用户拒绝且勾选「不再询问」，引导到设置页
+                    new AlertDialog.Builder(requireContext())
+                            .setTitle("权限提示")
+                            .setMessage("存储权限已被禁用，请前往设置页开启，否则无法从相册选择图片")
+                            .setPositiveButton("去设置", (dialog, which) -> PermissionUtils.goToAppSettings(requireContext()))
+                            .setNegativeButton("取消", null)
+                            .show();
+                }
             }
+        }
+
+        // 处理相机权限（拍照）
+        else if (requestCode == PERMISSION_REQUEST_CODE) {
+            if (granted) {
+                // 权限授予，重新执行拍照操作
+                if ("take_photo".equals(mPermissionAction)) {
+                    takePhoto();
+                }
+            } else {
+                if (shouldShowRequestPermissionRationale(permissions[0])) {
+                    Toast.makeText(getContext(), "相机权限被拒绝，无法拍照", Toast.LENGTH_SHORT).show();
+                } else {
+                    new AlertDialog.Builder(requireContext())
+                            .setTitle("权限提示")
+                            .setMessage("相机权限已被禁用，请前往设置页开启，否则无法拍照")
+                            .setPositiveButton("去设置", (dialog, which) -> PermissionUtils.goToAppSettings(requireContext()))
+                            .setNegativeButton("取消", null)
+                            .show();
+                }
+            }
+        }
+    }
+
+    /**
+     * 跳转到应用权限设置页（兼容HarmonyOS）
+     */
+    private void goToAppSettings() {
+        try {
+            // 优先尝试HarmonyOS专属设置页
+            Intent intent = new Intent();
+            intent.setAction("com.huawei.settings.permissionmanage.PermissionManageActivity");
+            intent.putExtra("packageName", requireContext().getPackageName());
+            startActivity(intent);
+        } catch (Exception e) {
+            // 兼容失败则用Android原生设置页
+            Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            Uri uri = Uri.fromParts("package", requireContext().getPackageName(), null);
+            intent.setData(uri);
+            startActivity(intent);
         }
     }
 
