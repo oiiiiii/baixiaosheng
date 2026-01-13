@@ -8,78 +8,92 @@ import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Environment;
 import android.util.Log;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
+/**
+ * 图片工具类（修复解码失败、Android 10+路径适配）
+ */
 public class ImageUtils {
     private static final String TAG = "ImageUtils";
-    private static final int MAX_WIDTH = 800; // 压缩后最大宽度
-    private static final int MAX_HEIGHT = 800; // 压缩后最大高度
-    private static final int QUALITY = 80; // 压缩质量
+    private static final int MAX_WIDTH = 800;
+    private static final int MAX_HEIGHT = 800;
+    private static final int QUALITY = 80;
 
-    // 修复：获取拍照文件（确保文件路径正确，权限可访问）
+    /**
+     * 创建图片文件（应用私有目录，无需外部权限）
+     */
     public static File createImageFile(Context context) throws IOException {
-        // 1. 生成唯一文件名
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.CHINA).format(new Date());
-        String imageFileName = "JPEG_" + timeStamp + "_";
-        // 2. 获取应用私有存储目录（无需动态权限）
+        String fileName = "IMG_" + timeStamp;
         File storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES);
         if (!storageDir.exists()) {
             storageDir.mkdirs();
         }
-        // 3. 创建临时文件
-        File imageFile = File.createTempFile(
-                imageFileName,  // 前缀
-                ".jpg",         // 后缀
-                storageDir      // 存储目录
-        );
-        return imageFile;
+        return File.createTempFile(fileName, ".jpg", storageDir);
     }
 
-    // 修复：图片解码+旋转矫正（解决拍照后图片旋转、解码失败问题）
+    /**
+     * 解码图片（修复旋转、压缩、OOM问题）
+     */
     public static Bitmap decodeImage(String filePath) {
+        if (filePath == null || !new File(filePath).exists()) {
+            Log.e(TAG, "图片文件不存在：" + filePath);
+            return null;
+        }
+
         try {
-            // 1. 获取图片宽高（不加载到内存）
+            // 第一步：获取图片尺寸（不加载到内存）
             BitmapFactory.Options options = new BitmapFactory.Options();
             options.inJustDecodeBounds = true;
             BitmapFactory.decodeFile(filePath, options);
-            // 2. 计算采样率（压缩图片）
+
+            // 第二步：计算采样率
             options.inSampleSize = calculateInSampleSize(options, MAX_WIDTH, MAX_HEIGHT);
-            // 3. 加载图片到内存
             options.inJustDecodeBounds = false;
+            options.inPreferredConfig = Bitmap.Config.RGB_565; // 减少内存占用
+            options.inPurgeable = true;
+
+            // 第三步：加载图片
             Bitmap bitmap = BitmapFactory.decodeFile(filePath, options);
             if (bitmap == null) {
-                Log.e(TAG, "图片解码后为空，filePath：" + filePath);
+                Log.e(TAG, "图片解码为空：" + filePath);
                 return null;
             }
-            // 4. 矫正图片旋转角度
-            int rotateAngle = getImageRotateAngle(filePath);
-            if (rotateAngle != 0) {
+
+            // 第四步：矫正旋转角度
+            int rotate = getRotateAngle(filePath);
+            if (rotate != 0) {
                 Matrix matrix = new Matrix();
-                matrix.postRotate(rotateAngle);
-                bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+                matrix.postRotate(rotate);
+                bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(),
+                        bitmap.getHeight(), matrix, true);
             }
+
             return bitmap;
+        } catch (OutOfMemoryError e) {
+            Log.e(TAG, "图片解码OOM：" + e.getMessage());
+            System.gc(); // 触发垃圾回收
+            return null;
         } catch (Exception e) {
             Log.e(TAG, "图片解码失败：" + e.getMessage());
             return null;
         }
     }
 
-    // 计算图片采样率（压缩）
+    /**
+     * 计算采样率（压缩图片）
+     */
     private static int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
-        final int width = options.outWidth;
-        final int height = options.outHeight;
+        int width = options.outWidth;
+        int height = options.outHeight;
         int inSampleSize = 1;
+
         if (height > reqHeight || width > reqWidth) {
-            final int halfHeight = height / 2;
-            final int halfWidth = width / 2;
+            int halfHeight = height / 2;
+            int halfWidth = width / 2;
             while ((halfHeight / inSampleSize) >= reqHeight && (halfWidth / inSampleSize) >= reqWidth) {
                 inSampleSize *= 2;
             }
@@ -87,85 +101,68 @@ public class ImageUtils {
         return inSampleSize;
     }
 
-    // 获取图片旋转角度
-    private static int getImageRotateAngle(String filePath) {
-        int rotateAngle = 0;
+    /**
+     * 获取图片旋转角度
+     */
+    private static int getRotateAngle(String filePath) {
         try {
             ExifInterface exif = new ExifInterface(filePath);
-            int orientation = exif.getAttributeInt(
-                    ExifInterface.TAG_ORIENTATION,
-                    ExifInterface.ORIENTATION_NORMAL
-            );
+            int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION,
+                    ExifInterface.ORIENTATION_NORMAL);
             switch (orientation) {
-                case ExifInterface.ORIENTATION_ROTATE_90:
-                    rotateAngle = 90;
-                    break;
-                case ExifInterface.ORIENTATION_ROTATE_180:
-                    rotateAngle = 180;
-                    break;
-                case ExifInterface.ORIENTATION_ROTATE_270:
-                    rotateAngle = 270;
-                    break;
-                default:
-                    rotateAngle = 0;
-                    break;
+                case ExifInterface.ORIENTATION_ROTATE_90: return 90;
+                case ExifInterface.ORIENTATION_ROTATE_180: return 180;
+                case ExifInterface.ORIENTATION_ROTATE_270: return 270;
+                default: return 0;
             }
         } catch (IOException e) {
-            Log.e(TAG, "获取图片旋转角度失败：" + e.getMessage());
+            Log.e(TAG, "获取旋转角度失败：" + e.getMessage());
+            return 0;
         }
-        return rotateAngle;
     }
 
-    // 保存图片到指定路径
+    /**
+     * Uri转真实路径（适配Android 10+）
+     */
+    public static String getPathFromUri(Context context, Uri uri) {
+        if (uri == null) return null;
+
+        try (InputStream is = context.getContentResolver().openInputStream(uri)) {
+            if (is == null) return null;
+
+            // 复制到应用私有目录
+            File tempFile = createImageFile(context);
+            try (FileOutputStream fos = new FileOutputStream(tempFile)) {
+                byte[] buffer = new byte[1024];
+                int len;
+                while ((len = is.read(buffer)) != -1) {
+                    fos.write(buffer, 0, len);
+                }
+                return tempFile.getAbsolutePath();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Uri转路径失败：" + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 保存Bitmap到文件
+     */
     public static boolean saveBitmap(Bitmap bitmap, String filePath) {
-        FileOutputStream fos = null;
-        try {
-            File file = new File(filePath);
-            // 确保父目录存在
-            File parentDir = file.getParentFile();
-            if (!parentDir.exists()) {
-                parentDir.mkdirs();
-            }
-            if (file.exists()) {
-                file.delete();
-            }
-            fos = new FileOutputStream(file);
+        if (bitmap == null || filePath == null) return false;
+
+        File file = new File(filePath);
+        File parent = file.getParentFile();
+        if (!parent.exists()) {
+            parent.mkdirs();
+        }
+
+        try (FileOutputStream fos = new FileOutputStream(file)) {
             return bitmap.compress(Bitmap.CompressFormat.JPEG, QUALITY, fos);
         } catch (Exception e) {
             Log.e(TAG, "保存图片失败：" + e.getMessage());
             return false;
-        } finally {
-            try {
-                if (fos != null) {
-                    fos.close();
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    // 从Uri获取图片路径（适配Android 10+）
-    public static String getPathFromUri(Context context, Uri uri) {
-        try {
-            InputStream is = context.getContentResolver().openInputStream(uri);
-            if (is == null) {
-                Log.e(TAG, "Uri打开输入流失败");
-                return null;
-            }
-            File tempFile = createImageFile(context);
-            FileOutputStream fos = new FileOutputStream(tempFile);
-            byte[] buffer = new byte[1024];
-            int len;
-            while ((len = is.read(buffer)) != -1) {
-                fos.write(buffer, 0, len);
-            }
-            is.close();
-            fos.close();
-            return tempFile.getAbsolutePath();
-        } catch (Exception e) {
-            Log.e(TAG, "Uri转路径失败：" + e.getMessage());
-            return null;
         }
     }
 }

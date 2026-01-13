@@ -169,6 +169,15 @@ public class CategoryManageViewModel extends AndroidViewModel {
         return liveData;
     }
 
+
+    public LiveData<Integer> checkItemCountByCategoryId(long categoryId) {
+        MutableLiveData<Integer> liveData = new MutableLiveData<>();
+        mExecutorService.execute(() -> {
+            int count = mCategoryDao.getRelatedItemCount(categoryId);
+            liveData.postValue(count);
+        });
+        return liveData;
+    }
     // 对外暴露LiveData
     public LiveData<List<Category>> getCategoryList() {
         return mCategoryList;

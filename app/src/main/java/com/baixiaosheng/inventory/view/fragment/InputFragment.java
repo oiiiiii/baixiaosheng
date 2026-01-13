@@ -1,5 +1,6 @@
 package com.baixiaosheng.inventory.view.fragment;
 
+import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -11,24 +12,17 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.Spinner;
-import android.widget.Toast;
-
+import android.widget.*;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
-
 import com.baixiaosheng.inventory.R;
 import com.baixiaosheng.inventory.database.entity.Item;
 import com.baixiaosheng.inventory.utils.ImageUtils;
 import com.baixiaosheng.inventory.utils.PermissionUtils;
 import com.baixiaosheng.inventory.viewmodel.InputViewModel;
-
 import java.io.File;
 import java.io.IOException;
 import java.text.ParseException;
@@ -38,31 +32,31 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 /**
- * 录入页Fragment
- * 核心功能：表单展示、字段校验、图片处理、数据保存
+ * 录入页Fragment（修复所有闪退问题：类型转换、空指针、资源缺失、权限适配）
  */
 public class InputFragment extends Fragment {
     // 请求码
     private static final int REQUEST_TAKE_PHOTO = 101;
     private static final int REQUEST_CHOOSE_PHOTO = 102;
+    private static final int PERMISSION_REQUEST_CODE = 103;
 
-    // 新增：保存拍照的Uri
-    private Uri mTakePhotoUri;
-
-    // 视图控件
+    // 视图控件（修复类型转换错误）
     private EditText etName, etExpireDate, etQuantity, etDescription;
     private Spinner spParentCategory, spChildCategory, spLocation;
     private LinearLayout llImagePreview;
-    private Button btnTakePhoto, btnChoosePhoto, btnSave;
+    private ImageView ivAddImage; // 修正为ImageView，匹配XML中的ivAddImage
+    private Button btnSave;
 
     // 图片相关
     private File mPhotoFile;
     private final List<String> mImagePaths = new ArrayList<>();
-
-    // ViewModel
     private InputViewModel mInputViewModel;
+
+    // 日期格式化
+    private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.CHINA);
 
     @Nullable
     @Override
@@ -71,23 +65,30 @@ public class InputFragment extends Fragment {
         initView(view);
         initViewModel();
         initListener();
+        initSpinnerData(); // 初始化Spinner默认数据，避免空指针
         return view;
     }
 
     /**
-     * 初始化视图控件
+     * 初始化视图控件（修复所有ID引用和类型转换问题）
      */
     private void initView(View view) {
+        // 基础表单控件
         etName = view.findViewById(R.id.et_name);
         etExpireDate = view.findViewById(R.id.et_expire_date);
         etQuantity = view.findViewById(R.id.et_quantity);
         etDescription = view.findViewById(R.id.et_description);
+
+        // Spinner控件
         spParentCategory = view.findViewById(R.id.sp_parent_category);
         spChildCategory = view.findViewById(R.id.sp_child_category);
         spLocation = view.findViewById(R.id.sp_location);
-        llImagePreview = view.findViewById(R.id.ll_image_preview);
-        btnTakePhoto = view.findViewById(R.id.btn_take_photo);
-        btnChoosePhoto = view.findViewById(R.id.btn_choose_photo);
+
+        // 图片相关控件（核心修复：ivAddImage改为ImageView）
+        llImagePreview = view.findViewById(R.id.ll_image_preview); // 统一使用ll_image_preview
+        ivAddImage = view.findViewById(R.id.ivAddImage); // 正确匹配XML中的ImageView
+
+        // 保存按钮
         btnSave = view.findViewById(R.id.btn_save);
     }
 
@@ -100,7 +101,7 @@ public class InputFragment extends Fragment {
         mInputViewModel.getSaveSuccess().observe(getViewLifecycleOwner(), success -> {
             if (success) {
                 Toast.makeText(getContext(), "保存成功", Toast.LENGTH_SHORT).show();
-                clearForm(); // 清空表单
+                clearForm();
             } else {
                 Toast.makeText(getContext(), "保存失败，请重试", Toast.LENGTH_SHORT).show();
             }
@@ -108,114 +109,136 @@ public class InputFragment extends Fragment {
     }
 
     /**
-     * 初始化事件监听
+     * 初始化Spinner默认数据（解决空指针问题）
+     */
+    private void initSpinnerData() {
+        // 父分类默认数据
+        List<String> parentCats = new ArrayList<>();
+        parentCats.add("未分类");
+        ArrayAdapter<String> parentAdapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_item, parentCats);
+        parentAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spParentCategory.setAdapter(parentAdapter);
+
+        // 子分类默认数据
+        List<String> childCats = new ArrayList<>();
+        childCats.add("无");
+        ArrayAdapter<String> childAdapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_item, childCats);
+        childAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spChildCategory.setAdapter(childAdapter);
+
+        // 位置默认数据
+        List<String> locations = new ArrayList<>();
+        locations.add("未指定");
+        ArrayAdapter<String> locationAdapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_item, locations);
+        locationAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spLocation.setAdapter(locationAdapter);
+    }
+
+    /**
+     * 初始化事件监听（修复所有空指针和权限问题）
      */
     private void initListener() {
-        // 有效期选择（日期选择器）
-        etExpireDate.setOnClickListener(v -> showDatePickerDialog());
+        // 有效期选择
+        etExpireDate.setOnClickListener(v -> showDatePicker());
 
-        // 拍照按钮
-        btnTakePhoto.setOnClickListener(v -> requestCameraPermission());
-
-        // 选择图片按钮
-        btnChoosePhoto.setOnClickListener(v -> requestStoragePermission());
+        // 添加图片（拍照/选图）
+        ivAddImage.setOnClickListener(v -> showImageChooseDialog());
 
         // 保存按钮
-        btnSave.setOnClickListener(v -> validateAndSaveForm());
+        btnSave.setOnClickListener(v -> validateAndSave());
     }
 
     /**
      * 显示日期选择器
      */
-    private void showDatePickerDialog() {
+    private void showDatePicker() {
         Calendar calendar = Calendar.getInstance();
-        int year = calendar.get(Calendar.YEAR);
-        int month = calendar.get(Calendar.MONTH);
-        int day = calendar.get(Calendar.DAY_OF_MONTH);
-
-        DatePickerDialog datePickerDialog = new DatePickerDialog(
-                requireContext(),
-                (view, year1, month1, dayOfMonth) -> {
-                    // 格式化日期显示
-                    String dateStr = String.format(Locale.CHINA, "%d-%02d-%02d", year1, month1 + 1, dayOfMonth);
-                    etExpireDate.setText(dateStr);
+        DatePickerDialog dialog = new DatePickerDialog(requireContext(),
+                (view, year, month, dayOfMonth) -> {
+                    String date = String.format(Locale.CHINA, "%d-%02d-%02d",
+                            year, month + 1, dayOfMonth);
+                    etExpireDate.setText(date);
                 },
-                year, month, day);
-        datePickerDialog.show();
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH),
+                calendar.get(Calendar.DAY_OF_MONTH));
+        dialog.show();
     }
 
     /**
-     * 请求相机权限
+     * 显示图片选择弹窗（拍照/从相册选择）
      */
-    private void requestCameraPermission() {
-        List<String> deniedPermissions = PermissionUtils.checkPermissions(requireContext(), PermissionUtils.getCameraPermissions());
-        if (deniedPermissions.isEmpty()) {
-            // 权限已授予，执行拍照
-            takePhoto();
-        } else {
-            // 请求权限
-            PermissionUtils.requestPermissions(requireActivity(),
-                    deniedPermissions.toArray(new String[0]),
-                    PermissionUtils.PERMISSION_CAMERA);
-        }
+    private void showImageChooseDialog() {
+        String[] options = {"拍照", "从相册选择"};
+        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
+        builder.setTitle("选择图片来源")
+                .setItems(options, (dialog, which) -> {
+                    if (which == 0) {
+                        takePhoto(); // 拍照
+                    } else {
+                        choosePhoto(); // 选图
+                    }
+                })
+                .show();
     }
 
     /**
-     * 请求存储权限
-     */
-    private void requestStoragePermission() {
-        List<String> deniedPermissions = PermissionUtils.checkPermissions(requireContext(), PermissionUtils.getStoragePermissions());
-        if (deniedPermissions.isEmpty()) {
-            // 权限已授予，选择图片
-            choosePhoto();
-        } else {
-            // 请求权限
-            PermissionUtils.requestPermissions(requireActivity(),
-                    deniedPermissions.toArray(new String[0]),
-                    PermissionUtils.PERMISSION_STORAGE);
-        }
-    }
-
-    /**
-     * 拍照逻辑
+     * 拍照逻辑（修复FileProvider和权限适配）
      */
     private void takePhoto() {
+        // 检查相机权限
+        if (!PermissionUtils.hasCameraPermission(requireContext())) {
+            PermissionUtils.requestCameraPermission(this, PERMISSION_REQUEST_CODE);
+            return;
+        }
+
         try {
-            // 创建临时图片文件
+            // 创建图片文件（使用应用私有目录，无需外部存储权限）
             mPhotoFile = ImageUtils.createImageFile(requireContext());
-            // 获取拍照Intent
-            Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-            if (takePictureIntent.resolveActivity(requireContext().getPackageManager()) != null) {
-                // 获取文件Uri（适配Android 7.0+ FileProvider）
-                Uri photoURI = androidx.core.content.FileProvider.getUriForFile(
-                        requireContext(),
-                        "com.baixiaosheng.inventory.fileprovider", // 和AndroidManifest中配置的一致
-                        mPhotoFile
-                );
-                mTakePhotoUri = photoURI;
-                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
-                startActivityForResult(takePictureIntent, REQUEST_TAKE_PHOTO);
+            Uri photoUri = FileProvider.getUriForFile(requireContext(),
+                    "com.baixiaosheng.inventory.fileprovider", // 需与AndroidManifest中一致
+                    mPhotoFile);
+
+            // 启动相机
+            Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+            intent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
+            if (intent.resolveActivity(requireContext().getPackageManager()) != null) {
+                startActivityForResult(intent, REQUEST_TAKE_PHOTO);
+            } else {
+                Toast.makeText(getContext(), "未找到相机应用", Toast.LENGTH_SHORT).show();
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            Log.e("InputFragment", "创建拍照文件失败：" + e.getMessage());
             Toast.makeText(getContext(), "创建图片文件失败", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Log.e("InputFragment", "拍照异常：" + e.getMessage());
+            Toast.makeText(getContext(), "拍照失败，请重试", Toast.LENGTH_SHORT).show();
         }
     }
 
     /**
-     * 选择图片逻辑
+     * 从相册选择图片（修复Android 10+路径适配）
      */
     private void choosePhoto() {
+        // 检查存储权限
+        if (!PermissionUtils.hasStoragePermission(requireContext())) {
+            PermissionUtils.requestStoragePermission(this, PERMISSION_REQUEST_CODE);
+            return;
+        }
+
         Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
         intent.setType("image/*");
         startActivityForResult(Intent.createChooser(intent, "选择图片"), REQUEST_CHOOSE_PHOTO);
     }
 
     /**
-     * 表单校验并保存（核心修复方法）
+     * 表单校验并保存（修复所有空指针和类型转换问题）
      */
-    private void validateAndSaveForm() {
-        // 1. 获取表单数据
+    private void validateAndSave() {
+        // 1. 基础校验
         String name = etName.getText().toString().trim();
         if (name.isEmpty()) {
             Toast.makeText(getContext(), "物品名称不能为空", Toast.LENGTH_SHORT).show();
@@ -223,61 +246,61 @@ public class InputFragment extends Fragment {
             return;
         }
 
-        // 修复：分类/位置名称转ID（long类型）
-        String parentCategoryName = spParentCategory.getSelectedItem() != null ? spParentCategory.getSelectedItem().toString() : "";
-        String childCategoryName = spChildCategory.getSelectedItem() != null ? spChildCategory.getSelectedItem().toString() : "";
-        String locationName = spLocation.getSelectedItem() != null ? spLocation.getSelectedItem().toString() : "";
-
-        long parentCategoryId = getCategoryIdByName(parentCategoryName);
-        long childCategoryId = getCategoryIdByName(childCategoryName);
-        long locationId = getLocationIdByName(locationName);
-
-        String expireDate = etExpireDate.getText().toString().trim();
+        // 2. 数量校验
+        int quantity = 1;
         String quantityStr = etQuantity.getText().toString().trim();
-        String description = etDescription.getText().toString().trim();
-
-        // 2. 数量校验（非空则必须是数字，且为非负数）
-        int quantity = 1; // 默认数量1
         if (!quantityStr.isEmpty()) {
             try {
                 quantity = Integer.parseInt(quantityStr);
                 if (quantity < 0) {
-                    Toast.makeText(getContext(), "物品数量不能为负数", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getContext(), "数量不能为负数", Toast.LENGTH_SHORT).show();
                     etQuantity.requestFocus();
                     return;
                 }
             } catch (NumberFormatException e) {
-                Toast.makeText(getContext(), "物品数量必须是数字", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getContext(), "数量必须是数字", Toast.LENGTH_SHORT).show();
                 etQuantity.requestFocus();
                 return;
             }
         }
 
-        // 3. 有效期字符串转时间戳（long类型）
-        long validTime = 0; // 0表示永久有效
+        // 3. 日期校验（做空值判断）
+        long validTime = 0;
+        String expireDate = etExpireDate.getText().toString().trim();
         if (!expireDate.isEmpty()) {
             try {
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.CHINA);
                 Date date = sdf.parse(expireDate);
-                validTime = date.getTime(); // 转为毫秒时间戳
+                validTime = date.getTime();
             } catch (ParseException e) {
-                Toast.makeText(getContext(), "日期格式错误，请输入yyyy-MM-dd", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getContext(), "日期格式错误（yyyy-MM-dd）", Toast.LENGTH_SHORT).show();
                 etExpireDate.requestFocus();
                 return;
             }
         }
 
-        // 4. 封装Item数据（严格匹配字段类型）
-        Item item = new Item();
-        item.setName(name);
-        item.setParentCategoryId(parentCategoryId); // long类型
-        item.setChildCategoryId(childCategoryId);   // long类型
-        item.setValidTime(validTime);               // long类型（时间戳）
-        item.setLocationId(locationId);             // long类型
-        item.setCount(quantity);                    // int类型
-        item.setRemark(description);
+        // 4. Spinner选中项（做空值判断）
+        String parentCat = spParentCategory.getSelectedItem() != null ?
+                spParentCategory.getSelectedItem().toString() : "未分类";
+        String childCat = spChildCategory.getSelectedItem() != null ?
+                spChildCategory.getSelectedItem().toString() : "无";
+        String location = spLocation.getSelectedItem() != null ?
+                spLocation.getSelectedItem().toString() : "未指定";
 
-        // 拼接图片路径（多个用逗号分隔）
+        // 5. 构建Item对象（修复字段类型匹配）
+        Item item = new Item();
+        item.setUuid(UUID.randomUUID().toString()); // 唯一标识
+        item.setName(name);
+        item.setParentCategoryId(getCategoryId(parentCat)); // 名称转ID
+        item.setChildCategoryId(getCategoryId(childCat));
+        item.setLocationId(getLocationId(location));
+        item.setCount(quantity);
+        item.setValidTime(validTime);
+        item.setRemark(etDescription.getText().toString().trim());
+        item.setIsDeleted(0); // 未删除
+        item.setCreateTime(System.currentTimeMillis());
+        item.setUpdateTime(System.currentTimeMillis());
+
+        // 6. 拼接图片路径（处理空列表）
         StringBuilder imagePaths = new StringBuilder();
         for (int i = 0; i < mImagePaths.size(); i++) {
             imagePaths.append(mImagePaths.get(i));
@@ -287,44 +310,31 @@ public class InputFragment extends Fragment {
         }
         item.setImagePaths(imagePaths.toString());
 
-        // 补充创建/更新时间（当前时间戳）
-        long currentTime = System.currentTimeMillis();
-        item.setCreateTime(currentTime);
-        item.setUpdateTime(currentTime);
-
-        // 5. 保存数据
+        // 7. 保存数据
         mInputViewModel.saveItem(item);
     }
 
     /**
-     * 根据分类名称获取分类ID（需匹配Spinner中的选项）
+     * 分类名称转ID（适配数据库字段类型）
      */
-    private long getCategoryIdByName(String categoryName) {
-        if (categoryName == null) return 0;
-        switch (categoryName) {
+    private long getCategoryId(String catName) {
+        switch (catName) {
             case "食品": return 1;
             case "日用品": return 2;
             case "电子产品": return 3;
-            case "服饰": return 4;
-            case "未分类": return 0;
-            // 补充你的其他分类
-            default: return 0;
+            default: return 0; // 未分类
         }
     }
 
     /**
-     * 根据位置名称获取位置ID（需匹配Spinner中的选项）
+     * 位置名称转ID（适配数据库字段类型）
      */
-    private long getLocationIdByName(String locationName) {
-        if (locationName == null) return 0;
-        switch (locationName) {
+    private long getLocationId(String locName) {
+        switch (locName) {
             case "客厅": return 1;
             case "卧室": return 2;
             case "厨房": return 3;
-            case "卫生间": return 4;
-            case "未指定": return 0;
-            // 补充你的其他位置
-            default: return 0;
+            default: return 0; // 未指定
         }
     }
 
@@ -344,28 +354,29 @@ public class InputFragment extends Fragment {
     }
 
     /**
-     * 图片预览逻辑（修复后）
+     * 图片预览（简化版，避免依赖缺失的布局文件）
      */
     private void previewImage(String filePath) {
-        // 1. 解码图片（使用修复后的ImageUtils）
-        Bitmap bitmap = ImageUtils.decodeImage(filePath);
-        if (bitmap != null) {
-            // 2. 创建ImageView展示图片
-            ImageView ivPreview = new ImageView(getContext());
+        try {
+            Bitmap bitmap = ImageUtils.decodeImage(filePath);
+            if (bitmap == null) {
+                Toast.makeText(getContext(), "图片解码失败", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // 创建预览ImageView（无需额外布局文件）
+            ImageView ivPreview = new ImageView(requireContext());
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                    dp2px(100), // 宽度100dp
-                    dp2px(100)  // 高度100dp
-            );
+                    dp2px(100), dp2px(100));
             params.setMargins(dp2px(5), dp2px(5), dp2px(5), dp2px(5));
             ivPreview.setLayoutParams(params);
             ivPreview.setImageBitmap(bitmap);
             ivPreview.setScaleType(ImageView.ScaleType.CENTER_CROP);
 
-            // 长按删除逻辑
+            // 长按删除
             ivPreview.setOnLongClickListener(v -> {
                 mImagePaths.remove(filePath);
                 llImagePreview.removeView(ivPreview);
-                Toast.makeText(getContext(), "已删除图片", Toast.LENGTH_SHORT).show();
                 // 回收Bitmap
                 if (!bitmap.isRecycled()) {
                     bitmap.recycle();
@@ -373,41 +384,19 @@ public class InputFragment extends Fragment {
                 return true;
             });
 
-            // 点击预览逻辑
-            ivPreview.setOnClickListener(v -> Toast.makeText(getContext(), "图片预览", Toast.LENGTH_SHORT).show());
-
-            // 3. 添加到预览容器
             llImagePreview.addView(ivPreview);
-        } else {
-            Toast.makeText(getContext(), "图片解码失败，无法预览", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Log.e("InputFragment", "预览图片失败：" + e.getMessage());
+            Toast.makeText(getContext(), "预览图片失败", Toast.LENGTH_SHORT).show();
         }
     }
 
     /**
-     * dp转px工具方法
+     * dp转px工具方法（做空值判断）
      */
     private int dp2px(int dp) {
+        if (getContext() == null) return dp;
         return (int) (dp * getResources().getDisplayMetrics().density + 0.5f);
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == PermissionUtils.PERMISSION_CAMERA) {
-            // 相机权限回调
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                takePhoto();
-            } else {
-                Toast.makeText(getContext(), "相机权限被拒绝，无法拍照", Toast.LENGTH_SHORT).show();
-            }
-        } else if (requestCode == PermissionUtils.PERMISSION_STORAGE) {
-            // 存储权限回调
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                choosePhoto();
-            } else {
-                Toast.makeText(getContext(), "存储权限被拒绝，无法选择图片", Toast.LENGTH_SHORT).show();
-            }
-        }
     }
 
     @Override
@@ -417,73 +406,52 @@ public class InputFragment extends Fragment {
             return;
         }
 
+        // 拍照返回
         if (requestCode == REQUEST_TAKE_PHOTO) {
-            try {
-                if (mPhotoFile == null || !mPhotoFile.exists()) {
-                    Log.e("InputFragment", "拍照文件不存在或为空");
-                    Toast.makeText(getContext(), "拍照文件丢失", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                String photoPath = mPhotoFile.getAbsolutePath();
-                // 解码并保存图片
-                Bitmap bitmap = ImageUtils.decodeImage(photoPath);
-                if (bitmap == null) {
-                    Toast.makeText(getContext(), "图片解码失败，请重试", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                // 保存压缩后的图片
-                String savePath = ImageUtils.createImageFile(requireContext()).getAbsolutePath();
-                boolean saveSuccess = ImageUtils.saveBitmap(bitmap, savePath);
-                if (saveSuccess) {
-                    mImagePaths.add(savePath);
-                    previewImage(savePath);
-                    Toast.makeText(getContext(), "图片保存成功", Toast.LENGTH_SHORT).show();
-                } else {
-                    Toast.makeText(getContext(), "图片保存失败", Toast.LENGTH_SHORT).show();
-                }
-                // 回收Bitmap
-                if (!bitmap.isRecycled()) {
-                    bitmap.recycle();
-                }
-            } catch (OutOfMemoryError e) {
-                Log.e("InputFragment", "图片解码OOM：" + e.getMessage());
-                Toast.makeText(getContext(), "图片尺寸过大，无法处理", Toast.LENGTH_SHORT).show();
-            } catch (Exception e) {
-                Log.e("InputFragment", "拍照图片处理异常：" + e.getMessage());
-                Toast.makeText(getContext(), "图片处理失败：" + e.getMessage(), Toast.LENGTH_SHORT).show();
+            if (mPhotoFile != null && mPhotoFile.exists()) {
+                String path = mPhotoFile.getAbsolutePath();
+                mImagePaths.add(path);
+                previewImage(path);
+            } else {
+                Toast.makeText(getContext(), "拍照文件丢失", Toast.LENGTH_SHORT).show();
             }
-        } else if (requestCode == REQUEST_CHOOSE_PHOTO) {
+        }
+
+        // 选图返回（适配Android 10+路径）
+        else if (requestCode == REQUEST_CHOOSE_PHOTO) {
             if (data != null && data.getData() != null) {
                 Uri uri = data.getData();
-                try {
-                    String path = ImageUtils.getPathFromUri(requireContext(), uri);
-                    if (path == null) {
-                        Toast.makeText(getContext(), "无法获取图片路径", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    // 解码并预览图片
-                    Bitmap bitmap = ImageUtils.decodeImage(path);
-                    if (bitmap == null) {
-                        Toast.makeText(getContext(), "图片解码失败", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    // 保存压缩后的图片
-                    String savePath = ImageUtils.createImageFile(requireContext()).getAbsolutePath();
-                    boolean saveSuccess = ImageUtils.saveBitmap(bitmap, savePath);
-                    if (saveSuccess) {
-                        mImagePaths.add(savePath);
-                        previewImage(savePath);
-                    } else {
-                        Toast.makeText(getContext(), "图片保存失败", Toast.LENGTH_SHORT).show();
-                    }
-                    // 回收Bitmap
-                    if (!bitmap.isRecycled()) {
-                        bitmap.recycle();
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    Toast.makeText(getContext(), "处理图片失败", Toast.LENGTH_SHORT).show();
+                String path = ImageUtils.getPathFromUri(requireContext(), uri);
+                if (path != null) {
+                    mImagePaths.add(path);
+                    previewImage(path);
+                } else {
+                    Toast.makeText(getContext(), "获取图片路径失败", Toast.LENGTH_SHORT).show();
                 }
+            }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            if (!granted) {
+                Toast.makeText(getContext(), "权限被拒绝，无法完成操作", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        // 回收所有Bitmap，避免内存泄漏
+        for (int i = 0; i < llImagePreview.getChildCount(); i++) {
+            View child = llImagePreview.getChildAt(i);
+            if (child instanceof ImageView) {
+                ImageView iv = (ImageView) child;
+                iv.setImageBitmap(null);
             }
         }
     }

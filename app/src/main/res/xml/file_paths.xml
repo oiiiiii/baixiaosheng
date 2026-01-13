@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<paths xmlns:android="http://schemas.android.com/apk/res/android">
+<paths>
+    <!-- 应用私有图片目录（拍照保存路径） -->
     <external-files-path
         name="my_images"
-        path="Pictures/InventoryImages"/>
+        path="Pictures"/>
+    <!-- 兼容旧版路径（可选） -->
+    <external-path
+        name="external_files"
+        path="."/>
 </paths>

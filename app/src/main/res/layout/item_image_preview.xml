@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="100dp"
+    android:layout_height="100dp"
+    android:layout_margin="4dp">
+
+    <!-- 图片展示 -->
+    <ImageView
+        android:id="@+id/ivImagePreview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:src="@drawable/ic_launcher_background" />
+
+    <!-- 删除按钮（默认隐藏，放大时显示） -->
+    <ImageView
+        android:id="@+id/ivDeleteImage"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentTop="true"
+        android:background="@color/red"
+        android:padding="2dp"
+        android:src="@drawable/ic_delete"
+        android:visibility="gone" />
+
+</RelativeLayout>

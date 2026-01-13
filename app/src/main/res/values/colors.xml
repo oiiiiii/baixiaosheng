@@ -23,4 +23,7 @@
 
     <!-- 蓝色系 -->
     <color name="blue_500">#FF2196F3</color> <!-- Material 标准蓝（按钮/链接） -->
+
+    <color name="primary">#FFFF5733</color>
+
 </resources>

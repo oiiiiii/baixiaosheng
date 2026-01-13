@@ -13,6 +13,7 @@ import com.baixiaosheng.inventory.R;
 import com.baixiaosheng.inventory.database.entity.Item;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -21,6 +22,11 @@ public class ExpiredItemAdapter extends RecyclerView.Adapter<ExpiredItemAdapter.
     private List<Item> itemList;
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.CHINA);
 
+
+    // 添加无参构造方法（兼容Fragment调用）
+    public ExpiredItemAdapter() {
+        this.itemList = new ArrayList<>();
+    }
     // 构造方法
     public ExpiredItemAdapter(List<Item> itemList) {
         this.itemList = itemList;
