@@ -140,62 +140,34 @@
                 android:textSize="16sp"
                 android:textColor="@color/black"/>
 
-            <!-- 图片操作按钮（替换gap=8dp为marginLeft） -->
             <LinearLayout
+                android:id="@+id/llImagePreview"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
-                <Button
-                    android:id="@+id/btn_take_photo"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="拍照"/>
-                <Button
-                    android:id="@+id/btn_choose_photo"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginLeft="8dp"
-                    android:text="选择图片"/>
+                android:layout_marginTop="16dp"
+                android:orientation="horizontal"
+                android:padding="8dp"
+                android:scrollbars="horizontal"
+                android:weightSum="1">
+
+
+
+                <!-- 添加上传按钮 -->
+                <ImageView
+                    android:id="@+id/ivAddImage"
+                    android:layout_width="100dp"
+                    android:layout_height="100dp"
+                    android:layout_margin="4dp"
+                    android:background="@color/darker_gray"
+                    android:padding="20dp"
+                    android:src="@drawable/ic_menu_camera" />
+
+                <!-- 图片预览区域（动态添加） -->
             </LinearLayout>
 
-            <!-- 图片预览区（替换gap=8dp，后续通过代码给子View加marginLeft） -->
-            <HorizontalScrollView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp">
-                <LinearLayout
-                    android:id="@+id/ll_image_preview"
-                    android:layout_width="wrap_content"
-                    android:layout_height="120dp"
-                    android:orientation="horizontal"/>
-            </HorizontalScrollView>
+
         </LinearLayout>
 
-        <!-- 原有布局中图片预览区域替换为以下代码 -->
-        <LinearLayout
-            android:id="@+id/llImagePreview"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:orientation="horizontal"
-            android:padding="8dp"
-            android:scrollbars="horizontal"
-            android:weightSum="1">
-
-            <!-- 添加上传按钮 -->
-            <ImageView
-                android:id="@+id/ivAddImage"
-                android:layout_width="100dp"
-                android:layout_height="100dp"
-                android:layout_margin="4dp"
-                android:background="@color/darker_gray"
-                android:padding="20dp"
-                android:src="@drawable/ic_menu_camera" />
-
-            <!-- 图片预览区域（动态添加） -->
-        </LinearLayout>
 
         <!-- 物品说明（添加marginTop:12dp） -->
         <LinearLayout
