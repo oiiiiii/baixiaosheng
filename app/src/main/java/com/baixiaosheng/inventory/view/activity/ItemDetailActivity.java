@@ -9,6 +9,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
 
@@ -19,13 +20,11 @@ import com.baixiaosheng.inventory.database.entity.Location;
 import com.baixiaosheng.inventory.utils.DateUtils;
 import com.baixiaosheng.inventory.utils.ImageUtils;
 import com.baixiaosheng.inventory.viewmodel.QueryViewModel;
-import com.baixiaosheng.inventory.database.DatabaseManager;
 
 import java.util.List;
 
 /**
- * 物品详情页
- * 展示物品完整信息，支持编辑、删除、返回操作
+ * 物品详情页：完善编辑、删除功能，增强用户体验
  */
 public class ItemDetailActivity extends AppCompatActivity {
 
@@ -82,7 +81,7 @@ public class ItemDetailActivity extends AppCompatActivity {
     private void loadItemData() {
         // 查询物品详情
         queryViewModel.getItemById(itemId).observe(this, item -> {
-            if (isFinishing() || isDestroyed()) return; // 增加生命周期校验
+            if (isFinishing() || isDestroyed()) return;
             if (item == null) {
                 Toast.makeText(this, "物品不存在", Toast.LENGTH_SHORT).show();
                 finish();
@@ -135,7 +134,7 @@ public class ItemDetailActivity extends AppCompatActivity {
             iv.setLayoutParams(params);
             iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
 
-            // 加载图片（使用ImageUtils工具类）
+            // 加载图片
             ImageUtils.loadImage(path, iv);
 
             // 点击图片放大
@@ -147,26 +146,39 @@ public class ItemDetailActivity extends AppCompatActivity {
 
     private void bindEvents() {
         // 返回按钮
-        btnBack.setOnClickListener(v -> {
-            // 返回QueryFragment并保留查询条件（可通过Intent传递）
+        btnBack.setOnClickListener(v -> finish());
+
+        // 编辑按钮：跳转到编辑页（InputActivity）
+        btnEdit.setOnClickListener(v -> {
+            if (currentItem == null) {
+                Toast.makeText(this, "物品数据异常，无法编辑", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            Intent intent = new Intent(this, InputActivity.class);
+            intent.putExtra("item_id", currentItem.getId());
+            startActivity(intent);
+            // 编辑后关闭详情页，返回列表页
             finish();
         });
 
-        // 编辑按钮
-//        btnEdit.setOnClickListener(v -> {
-//            if (currentItem == null) return;
-//            Intent intent = new Intent(this, InputActivity.class);
-//            intent.putExtra("item_id", currentItem.getId());
-//            startActivity(intent);
-//            finish(); // 编辑后关闭详情页
-//        });
-
-        // 删除按钮（移入回收站）
+        // 删除按钮：增加确认弹窗，避免误操作
         btnDelete.setOnClickListener(v -> {
-            if (currentItem == null) return;
-            queryViewModel.markItemAsDeleted(currentItem.getId());
-            Toast.makeText(this, "已移入回收站", Toast.LENGTH_SHORT).show();
-            finish();
+            if (currentItem == null) {
+                Toast.makeText(this, "物品数据异常，无法删除", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            new AlertDialog.Builder(this)
+                    .setTitle("确认删除")
+                    .setMessage("确定要将【" + currentItem.getName() + "】移入回收站吗？")
+                    .setPositiveButton("确定", (dialog, which) -> {
+                        // 标记为已删除
+                        queryViewModel.markItemAsDeleted(currentItem.getId());
+                        Toast.makeText(ItemDetailActivity.this, "已移入回收站", Toast.LENGTH_SHORT).show();
+                        finish();
+                    })
+                    .setNegativeButton("取消", null)
+                    .show();
         });
     }
 }

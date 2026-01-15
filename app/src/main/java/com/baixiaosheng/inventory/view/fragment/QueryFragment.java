@@ -30,14 +30,13 @@ import com.baixiaosheng.inventory.view.adapter.QueryAdapter;
 import com.baixiaosheng.inventory.database.entity.Item;
 import com.baixiaosheng.inventory.model.FilterCondition;
 import com.baixiaosheng.inventory.viewmodel.QueryViewModel;
-import com.baixiaosheng.inventory.view.activity.MainActivity;
 import com.baixiaosheng.inventory.view.activity.ItemDetailActivity;
 
 import java.util.Calendar;
 import java.util.List;
 
 /**
- * 查询页Fragment：核心筛选+列表交互逻辑
+ * 查询页Fragment：仅保留筛选、单选跳转详情、多选删除功能
  */
 public class QueryFragment extends Fragment {
     // View
@@ -56,20 +55,14 @@ public class QueryFragment extends Fragment {
     // 筛选条件
     private final FilterCondition filterCondition = new FilterCondition();
 
-
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_query, container, false);
-        // 初始化View
         initView(view);
-        // 初始化ViewModel
         queryViewModel = new ViewModelProvider(this).get(QueryViewModel.class);
-        // 初始化适配器
         initAdapter();
-        // 绑定数据观察
         bindViewModel();
-        // 绑定事件
         bindEvents();
         return view;
     }
@@ -95,7 +88,6 @@ public class QueryFragment extends Fragment {
         rvInventoryList = view.findViewById(R.id.rv_inventory_list);
         tvEmptyTip = view.findViewById(R.id.tv_empty_tip);
 
-        // 设置RecyclerView布局
         rvInventoryList.setLayoutManager(new LinearLayoutManager(getContext()));
     }
 
@@ -104,44 +96,24 @@ public class QueryFragment extends Fragment {
         adapter = new QueryAdapter(getContext());
         rvInventoryList.setAdapter(adapter);
 
-        // 设置适配器回调：点击物品直接跳转ItemDetailActivity
-        adapter.setOnItemClickListener(this::showItemOperationDialog);
-        // 新增：绑定编辑监听
-        adapter.setOnItemEditListener(this::jumpToEditFragment);
+        // 仅保留：点击跳转详情
+        adapter.setOnItemClickListener(this::navigateToItemDetail);
 
         adapter.setOnMultiSelectChangeListener(new QueryAdapter.OnMultiSelectChangeListener() {
             @Override
             public void onSelectModeChanged(boolean isMultiSelect) {
-                // 显示/隐藏批量操作区
                 llBatchOperate.setVisibility(isMultiSelect ? View.VISIBLE : View.GONE);
             }
 
             @Override
             public void onSelectCountChanged(int count) {
-                // 更新选中数量
                 tvSelectedCount.setText("已选择：" + count + " 项");
-                // 批量删除按钮状态
                 btnBatchDelete.setEnabled(count > 0);
             }
         });
     }
 
-    // 新增：跳转到编辑模式的InputFragment
-    private void jumpToEditFragment(Item item) {
-        // 检查宿主Activity是否为MainActivity（避免类型转换异常）
-        if (getActivity() instanceof MainActivity) {
-            InputFragment editFragment = new InputFragment();
-            Bundle args = new Bundle();
-            args.putSerializable("edit_item", item); // Item已实现Serializable接口
-            editFragment.setArguments(args);
-            // 切换到编辑模式的InputFragment
-            ((MainActivity) getActivity()).switchFragment(editFragment);
-        } else {
-            Toast.makeText(getContext(), "跳转失败：当前上下文非MainActivity", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    // 新增：供外部调用的刷新列表方法
+    // 刷新列表
     public void refreshItemList() {
         queryViewModel.queryItems(filterCondition);
     }
@@ -217,7 +189,6 @@ public class QueryFragment extends Fragment {
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String parentCategory = (String) parent.getItemAtPosition(position);
                 filterCondition.setParentCategory(parentCategory);
-                // 加载对应子分类
                 queryViewModel.loadChildCategories(parentCategory);
             }
 
@@ -249,28 +220,25 @@ public class QueryFragment extends Fragment {
             public void onNothingSelected(AdapterView<?> parent) {}
         });
 
-
-        // 过期开始日期选择（修改后）
+        // 过期开始日期选择
         tvExpireStart.setOnClickListener(v -> {
             Calendar calendar = Calendar.getInstance();
             DatePickerDialog dialog = new DatePickerDialog(getContext(), (view1, year, month, dayOfMonth) -> {
                 Calendar selected = Calendar.getInstance();
                 selected.set(year, month, dayOfMonth);
                 filterCondition.setExpireStart(selected.getTime());
-                // 替换为DateUtils工具类
                 tvExpireStart.setText(DateUtils.formatDateToYmd(selected.getTime()));
             }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
             dialog.show();
         });
 
-// 过期结束日期选择（修改后）
+        // 过期结束日期选择
         tvExpireEnd.setOnClickListener(v -> {
             Calendar calendar = Calendar.getInstance();
             DatePickerDialog dialog = new DatePickerDialog(getContext(), (view1, year, month, dayOfMonth) -> {
                 Calendar selected = Calendar.getInstance();
                 selected.set(year, month, dayOfMonth);
                 filterCondition.setExpireEnd(selected.getTime());
-                // 替换为DateUtils工具类
                 tvExpireEnd.setText(DateUtils.formatDateToYmd(selected.getTime()));
             }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
             dialog.show();
@@ -279,7 +247,6 @@ public class QueryFragment extends Fragment {
         // 重置筛选
         btnResetFilter.setOnClickListener(v -> {
             filterCondition.reset();
-            // 清空UI
             svSearch.setQuery("", false);
             etQuantityMin.setText("");
             etQuantityMax.setText("");
@@ -288,7 +255,6 @@ public class QueryFragment extends Fragment {
             spParentCategory.setSelection(0);
             spChildCategory.setSelection(0);
             spLocation.setSelection(0);
-            // 重新查询
             queryViewModel.queryItems(filterCondition);
         });
 
@@ -335,19 +301,14 @@ public class QueryFragment extends Fragment {
         });
     }
 
-    // 物品操作：直接跳转ItemDetailActivity（移除原弹窗逻辑）
-    private void showItemOperationDialog(Item item) {
-        // 先校验item非空
+    // 跳转物品详情页
+    private void navigateToItemDetail(Item item) {
         if (item == null) {
             Toast.makeText(getContext(), "物品数据异常", Toast.LENGTH_SHORT).show();
             return;
         }
-        // 跳转到ItemDetailActivity
         Intent intent = new Intent(getContext(), ItemDetailActivity.class);
-        // 传递物品数据（Item需实现Serializable接口）
         intent.putExtra("item_id", item.getId());
         startActivity(intent);
     }
-
-    // 移除原有的showItemDetailDialog和replaceLine方法（已无需使用）
 }
