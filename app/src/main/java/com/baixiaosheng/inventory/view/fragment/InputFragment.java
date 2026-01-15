@@ -1,5 +1,6 @@
 package com.baixiaosheng.inventory.view.fragment;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.content.Intent;
@@ -205,11 +206,16 @@ public class InputFragment extends Fragment {
         mInputViewModel.getSaveSuccess().observe(getViewLifecycleOwner(), success -> {
             if (success) {
                 Toast.makeText(getContext(), isEditMode ? "修改保存成功" : "保存成功", Toast.LENGTH_SHORT).show();
-                clearForm();
-                // 编辑模式下保存成功后返回查询页
+
                 if (isEditMode) {
-                    requireActivity().getSupportFragmentManager().popBackStack();
+                    // 编辑模式：关闭InputActivity，返回ItemDetailActivity
+                    requireActivity().setResult(Activity.RESULT_OK); // 标记成功
+                    requireActivity().finish(); // 核心修改：关闭当前Activity
+                } else {
+                    // 新增模式：清空表单继续新增
+                    clearForm();
                 }
+
             } else {
                 Toast.makeText(getContext(), "保存失败，请重试", Toast.LENGTH_SHORT).show();
             }

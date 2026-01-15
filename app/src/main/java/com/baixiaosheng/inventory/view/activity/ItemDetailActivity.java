@@ -63,6 +63,17 @@ public class ItemDetailActivity extends AppCompatActivity {
         bindEvents();
     }
 
+    // 重写 onActivityResult 方法（接收InputActivity返回结果）
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 1001 && resultCode == RESULT_OK) {
+            // 编辑保存成功，重新加载物品数据
+            loadItemData();
+            Toast.makeText(this, "数据已更新", Toast.LENGTH_SHORT).show();
+        }
+    }
+
     private void bindViews() {
         tvItemName = findViewById(R.id.tv_item_name);
         tvParentCategory = findViewById(R.id.tv_parent_category);
@@ -149,18 +160,17 @@ public class ItemDetailActivity extends AppCompatActivity {
         btnBack.setOnClickListener(v -> finish());
 
         // 编辑按钮：跳转到编辑页（InputActivity）
+
         btnEdit.setOnClickListener(v -> {
             if (currentItem == null) {
                 Toast.makeText(this, "物品数据异常，无法编辑", Toast.LENGTH_SHORT).show();
                 return;
             }
             Intent intent = new Intent(this, InputActivity.class);
-
-            // 修正：传递序列化的 Item 对象（而非 item_id）
             intent.putExtra("edit_item", currentItem);
-            startActivity(intent);
-            // 编辑后关闭详情页，返回列表页
-            finish();
+            // 新版API用 registerForActivityResult，旧版用 startActivityForResult
+            // 这里用兼容写法（API 33+推荐 registerForActivityResult）
+            startActivityForResult(intent, 1001); // 1001为自定义请求码
         });
 
         // 删除按钮：增加确认弹窗，避免误操作
