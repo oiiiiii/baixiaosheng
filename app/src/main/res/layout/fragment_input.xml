@@ -140,40 +140,19 @@
                 android:textSize="16sp"
                 android:textColor="@color/black"/>
 
-            <LinearLayout
-                android:id="@+id/llImagePreview"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:orientation="horizontal"
-                android:padding="8dp"
-                android:scrollbars="horizontal"
-                android:weightSum="1">
-
-                <!-- 添加上传按钮 -->
-                <ImageView
-                    android:id="@+id/ivAddImage"
-                    android:layout_width="100dp"
-                    android:layout_height="100dp"
-                    android:layout_margin="4dp"
-                    android:background="@color/darker_gray"
-                    android:padding="20dp"
-                    android:src="@drawable/ic_menu_camera" />
-
-                <!-- 图片预览区域（动态添加） -->
-            </LinearLayout>
-
-            <!-- 图片预览区（替换gap=8dp，后续通过代码给子View加marginLeft） -->
             <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp">
+                android:layout_marginTop="8dp"
+                android:scrollbars="none"> <!-- 隐藏滚动条，提升美观度 -->
                 <LinearLayout
                     android:id="@+id/ll_image_preview"
                     android:layout_width="wrap_content"
-                    android:layout_height="120dp"
-                    android:orientation="horizontal"/>
+                    android:layout_height="80dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"/>
             </HorizontalScrollView>
+
         </LinearLayout>
 
         <!-- 物品说明（添加marginTop:12dp） -->

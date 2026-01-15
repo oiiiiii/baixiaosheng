@@ -74,12 +74,33 @@ public class InputFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_input, container, false);
         initView(view);
+        initAddImageButton(); // 新增：初始化添加图片按钮
         initViewModel();
         initListener();
-        initSpinnerData(); // 初始化Spinner默认数据，避免空指针
-        // 新增：接收编辑参数，初始化编辑模式
+        initSpinnerData();
         receiveEditParams();
         return view;
+    }
+    /**
+     * 新增：动态创建添加图片按钮（缩小尺寸，嵌入预览容器）
+     */
+    private void initAddImageButton() {
+        // 创建添加图片按钮
+        ivAddImage = new ImageView(requireContext());
+        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
+                dp2px(70), dp2px(70)); // 缩小按钮尺寸（原100dp→70dp）
+        btnParams.setMargins(dp2px(4), dp2px(0), dp2px(4), dp2px(0)); // 仅横向间距
+        ivAddImage.setLayoutParams(btnParams);
+        ivAddImage.setBackgroundResource(R.color.darker_gray);
+        ivAddImage.setPadding(dp2px(15), dp2px(15), dp2px(15), dp2px(15)); // 缩小内边距
+        ivAddImage.setImageResource(R.drawable.ic_menu_camera);
+        ivAddImage.setScaleType(ImageView.ScaleType.CENTER);
+
+        // 添加点击事件
+        ivAddImage.setOnClickListener(v -> showImageChooseDialog());
+
+        // 将按钮添加到预览容器首位
+        llImagePreview.addView(ivAddImage);
     }
 
     /**
@@ -123,15 +144,18 @@ public class InputFragment extends Fragment {
 
         // 4. 图片预览区回填
         if (mEditItem.getImagePaths() != null && !mEditItem.getImagePaths().isEmpty()) {
-            // 清空原有图片列表，避免叠加
             mImagePaths.clear();
-            llImagePreview.removeAllViews();
-            // 分割图片路径并添加预览
+            // 保留添加按钮，仅清空其他预览项
+            int childCount = llImagePreview.getChildCount();
+            for (int i = childCount - 1; i > 0; i--) {
+                llImagePreview.removeViewAt(i);
+            }
+
             String[] paths = mEditItem.getImagePaths().split(",");
             for (String path : paths) {
                 if (!path.isEmpty()) {
                     mImagePaths.add(path);
-                    previewImage(path); // 复用原有预览逻辑
+                    previewImage(path);
                 }
             }
         }
@@ -191,11 +215,11 @@ public class InputFragment extends Fragment {
 
         // 图片相关控件（核心修复：ivAddImage改为ImageView）
         llImagePreview = view.findViewById(R.id.ll_image_preview); // 统一使用ll_image_preview
-        ivAddImage = view.findViewById(R.id.ivAddImage); // 正确匹配XML中的ImageView
 
         // 保存按钮
         btnSave = view.findViewById(R.id.btn_save);
     }
+
 
     /**
      * 初始化ViewModel
@@ -505,6 +529,8 @@ public class InputFragment extends Fragment {
         mImagePaths.clear();
         llImagePreview.removeAllViews();
         // 编辑模式清空后重置为新增模式
+        // 关键修复：重新初始化添加图片按钮
+        initAddImageButton();
         if (isEditMode) {
             isEditMode = false;
             mEditItem = null;
