@@ -41,7 +41,7 @@ public class QueryAdapter extends RecyclerView.Adapter<QueryAdapter.ItemViewHold
     @NonNull
     @Override
     public ItemViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(context).inflate(R.layout.item_inventory_query, parent, false);
+        View view = LayoutInflater.from(context).inflate(R.layout.item_query, parent, false);
         return new ItemViewHolder(view);
     }
 
@@ -53,13 +53,15 @@ public class QueryAdapter extends RecyclerView.Adapter<QueryAdapter.ItemViewHold
         if (itemWithName != null && itemWithName.item != null) {
             // 绑定基础数据
             holder.tvName.setText(itemWithName.item.getName());
-            holder.tvUuid.setText(itemWithName.item.getUuid().substring(0, 8) + "...");
+
 
             // 使用分类和位置名称（ItemWithName的额外字段）
+
+            // 优化分类显示：未设置时展示“未设置/无”
             if (itemWithName.parentCategoryName != null && itemWithName.categoryName != null) {
                 holder.tvCategory.setText(itemWithName.parentCategoryName + "/" + itemWithName.categoryName);
             } else {
-                holder.tvCategory.setText(itemWithName.item.getParentCategoryId() + "/" + itemWithName.item.getChildCategoryId());
+                holder.tvCategory.setText("未设置");
             }
 
             if (itemWithName.locationName != null) {
@@ -200,13 +202,12 @@ public class QueryAdapter extends RecyclerView.Adapter<QueryAdapter.ItemViewHold
     // ViewHolder
     static class ItemViewHolder extends RecyclerView.ViewHolder {
         CheckBox cbSelect;
-        TextView tvName, tvUuid, tvCategory, tvLocation, tvQuantity, tvExpire, tvDesc;
+        TextView tvName, tvCategory, tvLocation, tvQuantity, tvExpire, tvDesc;
 
         public ItemViewHolder(@NonNull View itemView) {
             super(itemView);
             cbSelect = itemView.findViewById(R.id.cb_select);
             tvName = itemView.findViewById(R.id.tv_item_name);
-            tvUuid = itemView.findViewById(R.id.tv_item_uuid);
             tvCategory = itemView.findViewById(R.id.tv_item_category);
             tvLocation = itemView.findViewById(R.id.tv_item_location);
             tvQuantity = itemView.findViewById(R.id.tv_item_quantity);
