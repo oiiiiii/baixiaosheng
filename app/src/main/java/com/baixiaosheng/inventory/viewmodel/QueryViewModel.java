@@ -75,20 +75,29 @@ public class QueryViewModel extends AndroidViewModel {
         });
     }
 
+
     public void loadChildCategories(String parentCategory) {
         executor.execute(() -> {
-            long parentId = 0;
-            if (allCategoriesCache != null) {
-                for (Category category : allCategoriesCache) {
-                    if (parentCategory.equals(category.getName())) {
-                        parentId = category.getId();
-                        break;
+            List<Category> childCategories;
+            // 接收空字符串/null 时，加载所有子分类
+            if (parentCategory == null || parentCategory.isEmpty()) {
+                childCategories = databaseManager.getAllCategories(); // 加载所有子分类（需确认数据库方法）
+            } else {
+                // 原有逻辑：根据父分类名称查 parentId，再加载对应子分类
+                long parentId = 0;
+                if (allCategoriesCache != null) {
+                    for (Category category : allCategoriesCache) {
+                        if (parentCategory.equals(category.getName())) {
+                            parentId = category.getId();
+                            break;
+                        }
                     }
                 }
+                childCategories = databaseManager.getChildCategoriesByParentId(parentId);
             }
-
-            List<Category> childCategories = databaseManager.getChildCategoriesByParentId(parentId);
+            // 拼接「全部」并返回
             List<String> names = new ArrayList<>();
+            names.add("全部");
             for (Category category : childCategories) {
                 names.add(category.getName());
             }

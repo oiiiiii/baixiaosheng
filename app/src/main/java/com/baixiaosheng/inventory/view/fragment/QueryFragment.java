@@ -33,6 +33,7 @@ import com.baixiaosheng.inventory.model.FilterCondition;
 import com.baixiaosheng.inventory.viewmodel.QueryViewModel;
 import com.baixiaosheng.inventory.view.activity.ItemDetailActivity;
 
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
@@ -123,9 +124,55 @@ public class QueryFragment extends Fragment {
         queryViewModel.queryItems(filterCondition);
     }
 
+
     // 绑定ViewModel数据
     private void bindViewModel() {
-        // 观察物品列表（现在接收ItemWithName）
+        // 观察父分类列表
+        queryViewModel.getParentCategoryList().observe(getViewLifecycleOwner(), categories -> {
+            // 1. 拼接「全部」选项作为第一个item
+            List<String> categoryListWithAll = new ArrayList<>();
+            categoryListWithAll.add("全部");
+            if (categories != null) {
+                categoryListWithAll.addAll(categories);
+            }
+            // 2. 初始化Spinner适配器
+            ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(),
+                    android.R.layout.simple_spinner_item, categoryListWithAll);
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            spParentCategory.setAdapter(adapter);
+        });
+
+        // 观察子分类列表
+        queryViewModel.getChildCategoryList().observe(getViewLifecycleOwner(), categories -> {
+            // 1. 拼接「全部」选项作为第一个item
+            List<String> childCategoryListWithAll = new ArrayList<>();
+            childCategoryListWithAll.add("全部");
+            if (categories != null) {
+                childCategoryListWithAll.addAll(categories);
+            }
+            // 2. 初始化Spinner适配器
+            ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(),
+                    android.R.layout.simple_spinner_item, childCategoryListWithAll);
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            spChildCategory.setAdapter(adapter);
+        });
+
+        // 观察位置列表
+        queryViewModel.getLocationList().observe(getViewLifecycleOwner(), locations -> {
+            // 1. 拼接「全部」选项作为第一个item
+            List<String> locationListWithAll = new ArrayList<>();
+            locationListWithAll.add("全部");
+            if (locations != null) {
+                locationListWithAll.addAll(locations);
+            }
+            // 2. 初始化Spinner适配器
+            ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(),
+                    android.R.layout.simple_spinner_item, locationListWithAll);
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            spLocation.setAdapter(adapter);
+        });
+
+        // 原有物品列表观察逻辑不变
         queryViewModel.getItemList().observe(getViewLifecycleOwner(), items -> {
             if (items == null || items.isEmpty()) {
                 rvInventoryList.setVisibility(View.GONE);
@@ -133,32 +180,8 @@ public class QueryFragment extends Fragment {
             } else {
                 rvInventoryList.setVisibility(View.VISIBLE);
                 tvEmptyTip.setVisibility(View.GONE);
-                adapter.setItemList(items); // Adapter接收ItemWithName
+                adapter.setItemList(items);
             }
-        });
-
-        // 观察父分类列表
-        queryViewModel.getParentCategoryList().observe(getViewLifecycleOwner(), categories -> {
-            ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(),
-                    android.R.layout.simple_spinner_item, categories);
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            spParentCategory.setAdapter(adapter);
-        });
-
-        // 观察子分类列表
-        queryViewModel.getChildCategoryList().observe(getViewLifecycleOwner(), categories -> {
-            ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(),
-                    android.R.layout.simple_spinner_item, categories);
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            spChildCategory.setAdapter(adapter);
-        });
-
-        // 观察位置列表
-        queryViewModel.getLocationList().observe(getViewLifecycleOwner(), locations -> {
-            ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(),
-                    android.R.layout.simple_spinner_item, locations);
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            spLocation.setAdapter(adapter);
         });
     }
 
@@ -188,37 +211,54 @@ public class QueryFragment extends Fragment {
             ivFilterArrow.setRotation(isExpanded ? 0 : 180);
         });
 
-        // 父分类选择：联动子分类
+
+        // 父分类选择：联动子分类 + 仅非「全部」时设置筛选条件
         spParentCategory.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String parentCategory = (String) parent.getItemAtPosition(position);
-                filterCondition.setParentCategory(parentCategory);
-                queryViewModel.loadChildCategories(parentCategory);
+                // 选中「全部」（position=0）时，清空父分类筛选条件
+                if (position == 0) {
+                    filterCondition.setParentCategory(null); // 假设FilterCondition支持null表示不筛选
+                } else {
+                    filterCondition.setParentCategory(parentCategory);
+                }
+                // 联动加载子分类（子分类会自动拼接「全部」）
+                queryViewModel.loadChildCategories(position == 0 ? "" : parentCategory);
             }
 
             @Override
             public void onNothingSelected(AdapterView<?> parent) {}
         });
 
-        // 子分类选择
+// 子分类选择：仅非「全部」时设置筛选条件
         spChildCategory.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String childCategory = (String) parent.getItemAtPosition(position);
-                filterCondition.setChildCategory(childCategory);
+                // 选中「全部」（position=0）时，清空子分类筛选条件
+                if (position == 0) {
+                    filterCondition.setChildCategory(null);
+                } else {
+                    filterCondition.setChildCategory(childCategory);
+                }
             }
 
             @Override
             public void onNothingSelected(AdapterView<?> parent) {}
         });
 
-        // 位置选择
+// 位置选择：仅非「全部」时设置筛选条件
         spLocation.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String location = (String) parent.getItemAtPosition(position);
-                filterCondition.setLocation(location);
+                // 选中「全部」（position=0）时，清空位置筛选条件
+                if (position == 0) {
+                    filterCondition.setLocation(null);
+                } else {
+                    filterCondition.setLocation(location);
+                }
             }
 
             @Override
