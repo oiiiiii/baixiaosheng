@@ -30,10 +30,12 @@
 
         <Button
             android:id="@+id/btn_add_category"
-            android:layout_width="80dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="10dp"
-            android:text="添加" />
+            android:background="@drawable/btn_default_bg"
+            android:text="添加"
+            android:minWidth="120dp"
+        android:padding="8dp"/>
 
     </LinearLayout>
 

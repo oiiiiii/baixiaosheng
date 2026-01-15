@@ -1,8 +1,10 @@
 package com.baixiaosheng.inventory.view.activity;
 
 import android.content.Context;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
-import android.view.Gravity;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -41,13 +43,23 @@ public class CategoryManageActivity extends AppCompatActivity {
     private long mEditingCategoryId = 0; // 编辑中的分类ID，0表示新增
     private long mPendingDeleteCategoryId = 0; // 待删除的分类ID
 
+    private String btnDefaultText; // 仅保留默认文字备份
+    private Handler mHandler = new Handler(Looper.getMainLooper()); // 主线程Handler
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_category_manage);
         initView();
+        initBtnDefaultStyle(); // 初始化按钮默认样式
         initViewModel();
         initListener();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mHandler.removeCallbacksAndMessages(null);
     }
 
     /**
@@ -66,6 +78,14 @@ public class CategoryManageActivity extends AppCompatActivity {
     }
 
     /**
+     * 初始化按钮默认样式（仅保留文字备份）
+     */
+    private void initBtnDefaultStyle() {
+        // 仅保存默认文字
+        btnDefaultText = btnAddCategory.getText().toString();
+    }
+
+    /**
      * 初始化ViewModel及数据观察
      */
     private void initViewModel() {
@@ -77,35 +97,45 @@ public class CategoryManageActivity extends AppCompatActivity {
             mAdapter.updateData(categories);
         });
 
-
-        // 重构：观察父分类列表（核心修改）
+        // 观察父分类列表
         mViewModel.getParentCategories(0).observe(this, parentCategories -> {
             mParentCategoryList = parentCategories;
             // 每次父分类数据变化时，重新构建Spinner适配器并设置
             updateParentCategorySpinner();
         });
 
-        // 观察操作错误信息（原有逻辑不变）
+        // 观察操作错误信息
         mViewModel.getErrorMsg().observe(this, errorMsg -> {
             showAlertDialog("错误", errorMsg, false);
         });
 
-        // 新增：观察操作成功状态，确保UI提示和状态重置（可选，优化体验）
+        // 观察操作成功状态，仅修改按钮文字并延时恢复
         mViewModel.getOperationSuccess().observe(this, isSuccess -> {
             if (isSuccess) {
-                // 操作成功后重置编辑状态（原逻辑在btnAdd点击里，移到这里更合理）
                 resetEditState();
-                // 操作成功提示（根据编辑状态判断提示语）
-                String tip = mEditingCategoryId == 0 ? "分类添加成功" :
-                        (mPendingDeleteCategoryId != 0 ? "分类删除成功" : "分类修改成功");
-                Toast toast = Toast.makeText(this, tip, Toast.LENGTH_SHORT);
-                toast.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, dp2px(this, 100));
-                toast.show();
+
+                // 1. 设置按钮文字为OK
+                btnAddCategory.setText("OK");
+
+                // 2. 延迟恢复按钮文字
+                mHandler.removeCallbacks(mRestoreBtnRunnable);
+                mHandler.postDelayed(mRestoreBtnRunnable, 1000);
             }
         });
     }
 
-    // 新增：独立的Spinner更新方法（复用性更高）
+    /**
+     * 按钮文字恢复任务（仅恢复文字）
+     */
+    private Runnable mRestoreBtnRunnable = new Runnable() {
+        @Override
+        public void run() {
+            // 恢复原始文字
+            btnAddCategory.setText(btnDefaultText);
+        }
+    };
+
+    // 独立的Spinner更新方法
     private void updateParentCategorySpinner() {
         if (mParentCategoryList == null) {
             mParentCategoryList = new ArrayList<>();
@@ -116,7 +146,7 @@ public class CategoryManageActivity extends AppCompatActivity {
         for (int i = 0; i < mParentCategoryList.size(); i++) {
             parentNames[i + 1] = mParentCategoryList.get(i).getName();
         }
-        // 创建新的适配器（或更新原有适配器的数据源）
+        // 创建新的适配器
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
                 android.R.layout.simple_spinner_item, parentNames);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -148,7 +178,6 @@ public class CategoryManageActivity extends AppCompatActivity {
             category.setName(categoryName);
             category.setParentId(parentId);
 
-            // ========== 新增核心逻辑 ==========
             if (mEditingCategoryId == 0) {
                 // 新增分类：调用ViewModel的添加方法
                 mViewModel.addCategory(category);
@@ -162,7 +191,7 @@ public class CategoryManageActivity extends AppCompatActivity {
     }
 
     /**
-     * 处理编辑点击（独立方法，定义在类中、其他方法外）
+     * 处理编辑点击
      */
     private void handleEditClick(Category category) {
         mEditingCategoryId = category.getId();
@@ -182,7 +211,7 @@ public class CategoryManageActivity extends AppCompatActivity {
     }
 
     /**
-     * 处理删除点击（独立方法，定义在类中、其他方法外）
+     * 处理删除点击
      */
     private void handleDeleteClick(Category category) {
         mPendingDeleteCategoryId = category.getId();
@@ -198,11 +227,6 @@ public class CategoryManageActivity extends AppCompatActivity {
         });
     }
 
-    // 补充dp转px方法（放在CategoryManageActivity类中，与其他方法同级）
-    private int dp2px(Context context, float dpValue) {
-        final float scale = context.getResources().getDisplayMetrics().density;
-        return (int) (dpValue * scale + 0.5f);
-    }
 
     /**
      * 通用弹窗提示
