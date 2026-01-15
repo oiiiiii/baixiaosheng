@@ -91,7 +91,7 @@ public class ItemDetailActivity extends AppCompatActivity {
 
     private void loadItemData() {
         // 查询物品详情
-        queryViewModel.getItemById(itemId).observe(this, item -> {
+        queryViewModel.getItemByIdLiveData(itemId).observe(this, item -> {
             if (isFinishing() || isDestroyed()) return;
             if (item == null) {
                 Toast.makeText(this, "物品不存在", Toast.LENGTH_SHORT).show();
@@ -106,20 +106,22 @@ public class ItemDetailActivity extends AppCompatActivity {
             tvValidTime.setText(item.getValidTime() == 0 ? "无" : DateUtils.formatTime(item.getValidTime()));
             tvRemark.setText(item.getRemark() == null ? "无" : item.getRemark());
 
+
             // 查询父分类名称
-            queryViewModel.getCategoryById(item.getParentCategoryId()).observe(this, category -> {
+            queryViewModel.getCategoryByIdLiveData(item.getParentCategoryId()).observe(this, category -> {
                 tvParentCategory.setText(category == null ? "无" : category.getName());
             });
 
             // 查询子分类名称
-            queryViewModel.getCategoryById(item.getChildCategoryId()).observe(this, category -> {
+            queryViewModel.getCategoryByIdLiveData(item.getChildCategoryId()).observe(this, category -> {
                 tvChildCategory.setText(category == null ? "无" : category.getName());
             });
 
             // 查询位置名称
-            queryViewModel.getLocationById(item.getLocationId()).observe(this, location -> {
+            queryViewModel.getLocationByIdLiveData(item.getLocationId()).observe(this, location -> {
                 tvLocation.setText(location == null ? "无" : location.getName());
             });
+
 
             // 加载图片预览
             loadItemImages(item.getImagePaths());

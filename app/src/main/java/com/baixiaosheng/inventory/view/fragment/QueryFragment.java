@@ -25,6 +25,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.baixiaosheng.inventory.R;
+import com.baixiaosheng.inventory.database.entity.ItemWithName;
 import com.baixiaosheng.inventory.utils.DateUtils;
 import com.baixiaosheng.inventory.view.adapter.QueryAdapter;
 import com.baixiaosheng.inventory.database.entity.Item;
@@ -91,13 +92,16 @@ public class QueryFragment extends Fragment {
         rvInventoryList.setLayoutManager(new LinearLayoutManager(getContext()));
     }
 
+
     // 初始化适配器
     private void initAdapter() {
         adapter = new QueryAdapter(getContext());
         rvInventoryList.setAdapter(adapter);
 
-        // 仅保留：点击跳转详情
-        adapter.setOnItemClickListener(this::navigateToItemDetail);
+        // 修正：接收Item类型参数，而非ItemWithName
+        adapter.setOnItemClickListener(item -> {
+            navigateToItemDetail(item);
+        });
 
         adapter.setOnMultiSelectChangeListener(new QueryAdapter.OnMultiSelectChangeListener() {
             @Override
@@ -113,6 +117,7 @@ public class QueryFragment extends Fragment {
         });
     }
 
+
     // 刷新列表
     public void refreshItemList() {
         queryViewModel.queryItems(filterCondition);
@@ -120,7 +125,7 @@ public class QueryFragment extends Fragment {
 
     // 绑定ViewModel数据
     private void bindViewModel() {
-        // 观察物品列表
+        // 观察物品列表（现在接收ItemWithName）
         queryViewModel.getItemList().observe(getViewLifecycleOwner(), items -> {
             if (items == null || items.isEmpty()) {
                 rvInventoryList.setVisibility(View.GONE);
@@ -128,7 +133,7 @@ public class QueryFragment extends Fragment {
             } else {
                 rvInventoryList.setVisibility(View.VISIBLE);
                 tvEmptyTip.setVisibility(View.GONE);
-                adapter.setItemList(items);
+                adapter.setItemList(items); // Adapter接收ItemWithName
             }
         });
 
@@ -302,11 +307,14 @@ public class QueryFragment extends Fragment {
     }
 
     // 跳转物品详情页
+
+
     private void navigateToItemDetail(Item item) {
         if (item == null) {
             Toast.makeText(getContext(), "物品数据异常", Toast.LENGTH_SHORT).show();
             return;
         }
+
         Intent intent = new Intent(getContext(), ItemDetailActivity.class);
         intent.putExtra("item_id", item.getId());
         startActivity(intent);

@@ -8,6 +8,7 @@ import androidx.room.Query;
 import androidx.room.Update;
 
 import com.baixiaosheng.inventory.database.entity.Item;
+import com.baixiaosheng.inventory.database.entity.ItemWithName;
 
 import java.util.List;
 
@@ -55,9 +56,38 @@ public interface ItemDao {
             "AND (:expireEnd IS NULL OR validTime <= :expireEnd)")
     LiveData<List<Item>> queryItemsByCondition(
             String keyword,
-            Long parentCategoryIds,    // 改为List类型
-            Long childCategoryIds,     // 改为List类型
-            Long locationIds,          // 改为List类型
+            Long parentCategoryIds,
+            Long childCategoryIds,
+            Long locationIds,
+            Integer quantityMin,
+            Integer quantityMax,
+            Long expireStart,
+            Long expireEnd
+    );
+
+    // 直接查询Item的分类 / 位置名称
+    @Query("SELECT i.*, c1.name as parentCategoryName, c2.name as categoryName, l.name as locationName " +
+            "FROM item i " +
+            // 关联父分类表（parentCategoryId对应分类ID）
+            "LEFT JOIN category c1 ON i.parentCategoryId = c1.id " +
+            // 关联子分类表（childCategoryId对应分类ID）
+            "LEFT JOIN category c2 ON i.childCategoryId = c2.id " +
+            // 关联位置表（locationId对应位置ID）
+            "LEFT JOIN location l ON i.locationId = l.id " +
+            "WHERE i.isDeleted = 0 " +
+            "AND (:keyword IS NULL OR i.name LIKE '%' || :keyword || '%') " +
+            "AND (:parentCategoryName IS NULL OR c1.name = :parentCategoryName) " +
+            "AND (:childCategoryName IS NULL OR c2.name = :childCategoryName) " +
+            "AND (:locationName IS NULL OR l.name = :locationName) " +
+            "AND (:quantityMin IS NULL OR i.count >= :quantityMin) " +
+            "AND (:quantityMax IS NULL OR i.count <= :quantityMax) " +
+            "AND (:expireStart IS NULL OR i.validTime >= :expireStart) " +
+            "AND (:expireEnd IS NULL OR i.validTime <= :expireEnd)")
+    LiveData<List<ItemWithName>> queryItemsWithName(
+            String keyword,
+            String parentCategoryName,  // 直接传名称，无需查ID
+            String childCategoryName,
+            String locationName,
             Integer quantityMin,
             Integer quantityMax,
             Long expireStart,

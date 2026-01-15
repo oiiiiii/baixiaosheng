@@ -7,8 +7,10 @@ import androidx.lifecycle.LiveData;
 
 import com.baixiaosheng.inventory.database.entity.Category;
 import com.baixiaosheng.inventory.database.entity.Item;
+import com.baixiaosheng.inventory.database.entity.ItemWithName;
 import com.baixiaosheng.inventory.database.entity.Location;
 import com.baixiaosheng.inventory.database.entity.Recycle;
+import com.baixiaosheng.inventory.model.FilterCondition;
 
 import java.util.List;
 
@@ -162,6 +164,66 @@ public class DatabaseManager {
             long currentTime = System.currentTimeMillis();
             db.itemDao().markItemAsDeleted(item.getUuid(), currentTime);
         }
+    }
+
+    // ==================== 复杂查询方法 ====================
+
+    /**
+     * 多条件查询物品（使用名称直接查询）
+     */
+    public LiveData<List<ItemWithName>> queryItemsWithName(
+            String keyword,
+            String parentCategoryName,
+            String childCategoryName,
+            String locationName,
+            Integer quantityMin,
+            Integer quantityMax,
+            Long expireStart,
+            Long expireEnd) {
+        return db.itemDao().queryItemsWithName(
+                keyword, parentCategoryName, childCategoryName, locationName,
+                quantityMin, quantityMax, expireStart, expireEnd);
+    }
+
+    /**
+     * 多条件查询物品（使用ID查询）
+     */
+    public LiveData<List<Item>> queryItemsByCondition(
+            String keyword,
+            Long parentCategoryId,
+            Long childCategoryId,
+            Long locationId,
+            Integer quantityMin,
+            Integer quantityMax,
+            Long expireStart,
+            Long expireEnd) {
+        return db.itemDao().queryItemsByCondition(
+                keyword, parentCategoryId, childCategoryId, locationId,
+                quantityMin, quantityMax, expireStart, expireEnd);
+    }
+
+    /**
+     * 根据FilterCondition查询物品（推荐使用）
+     */
+    public LiveData<List<ItemWithName>> queryItemsByFilter(FilterCondition filter) {
+        // 处理空值
+        String keyword = (filter.getSearchKeyword() == null || filter.getSearchKeyword().isEmpty())
+                ? null : filter.getSearchKeyword();
+        String parentCategoryName = (filter.getParentCategory() == null || filter.getParentCategory().isEmpty())
+                ? null : filter.getParentCategory();
+        String childCategoryName = (filter.getChildCategory() == null || filter.getChildCategory().isEmpty())
+                ? null : filter.getChildCategory();
+        String locationName = (filter.getLocation() == null || filter.getLocation().isEmpty())
+                ? null : filter.getLocation();
+
+        // 将Date转换为时间戳
+        Long expireStart = filter.getExpireStart() != null ? filter.getExpireStart().getTime() : null;
+        Long expireEnd = filter.getExpireEnd() != null ? filter.getExpireEnd().getTime() : null;
+
+        return db.itemDao().queryItemsWithName(
+                keyword, parentCategoryName, childCategoryName, locationName,
+                filter.getQuantityMin(), filter.getQuantityMax(),
+                expireStart, expireEnd);
     }
 
     // ==================== 回收站表操作 ====================

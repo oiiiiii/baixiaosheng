@@ -10,7 +10,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.baixiaosheng.inventory.R;
-import com.baixiaosheng.inventory.database.entity.Item;
+import com.baixiaosheng.inventory.database.entity.ItemWithName;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -23,7 +23,7 @@ import java.util.Locale;
 public class QueryAdapter extends RecyclerView.Adapter<QueryAdapter.ItemViewHolder> {
     // 数据
     private final Context context;
-    private List<Item> itemList = new ArrayList<>();
+    private List<ItemWithName> itemList = new ArrayList<>(); // 统一使用ItemWithName
     // 多选模式
     private boolean isMultiSelectMode = false;
     private final List<String> selectedUuids = new ArrayList<>();
@@ -47,54 +47,73 @@ public class QueryAdapter extends RecyclerView.Adapter<QueryAdapter.ItemViewHold
 
     @Override
     public void onBindViewHolder(@NonNull ItemViewHolder holder, int position) {
-        Item item = itemList.get(position);
-        // 绑定基础数据
-        holder.tvName.setText(item.getName());
-        holder.tvUuid.setText(item.getUuid().substring(0, 8) + "...");
-        holder.tvCategory.setText(item.getParentCategoryId() + "/" + item.getChildCategoryId());
-        holder.tvLocation.setText(item.getLocationId() == 0 ? "未设置" : String.valueOf(item.getLocationId()));
-        holder.tvQuantity.setText(String.valueOf(item.getCount()));
-        // 过期时间
-        if (item.getValidTime() != 0) {
-            holder.tvExpire.setText(dateFormat.format(item.getValidTime()));
-        } else {
-            holder.tvExpire.setText("无");
-        }
-        // 物品说明
-        if (item.getRemark() != null && !item.getRemark().isEmpty()) {
-            holder.tvDesc.setVisibility(View.VISIBLE);
-            holder.tvDesc.setText(item.getRemark());
-        } else {
-            holder.tvDesc.setVisibility(View.GONE);
-        }
+        ItemWithName itemWithName = itemList.get(position);
 
-        // 多选模式处理
-        holder.cbSelect.setOnCheckedChangeListener(null);
-        holder.cbSelect.setVisibility(isMultiSelectMode ? View.VISIBLE : View.GONE);
-        holder.cbSelect.setChecked(selectedUuids.contains(item.getUuid()));
-        holder.cbSelect.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            updateSelectionState(item.getUuid(), isChecked);
-        });
+        // 使用ItemWithName中的Item部分
+        if (itemWithName != null && itemWithName.item != null) {
+            // 绑定基础数据
+            holder.tvName.setText(itemWithName.item.getName());
+            holder.tvUuid.setText(itemWithName.item.getUuid().substring(0, 8) + "...");
 
-        // 条目点击事件：仅跳转详情（多选模式下切换选中状态）
-        holder.itemView.setOnClickListener(v -> {
-            if (isMultiSelectMode) {
-                holder.cbSelect.setChecked(!holder.cbSelect.isChecked());
+            // 使用分类和位置名称（ItemWithName的额外字段）
+            if (itemWithName.parentCategoryName != null && itemWithName.categoryName != null) {
+                holder.tvCategory.setText(itemWithName.parentCategoryName + "/" + itemWithName.categoryName);
             } else {
-                if (itemClickListener != null) {
-                    itemClickListener.onItemClick(item);
-                }
+                holder.tvCategory.setText(itemWithName.item.getParentCategoryId() + "/" + itemWithName.item.getChildCategoryId());
             }
-        });
 
-        // 条目长按事件：进入多选模式
-        holder.itemView.setOnLongClickListener(v -> {
-            if (!isMultiSelectMode) {
-                setMultiSelectMode(true);
-                holder.cbSelect.setChecked(true);
+            if (itemWithName.locationName != null) {
+                holder.tvLocation.setText(itemWithName.locationName);
+            } else {
+                holder.tvLocation.setText(itemWithName.item.getLocationId() == 0 ? "未设置" : String.valueOf(itemWithName.item.getLocationId()));
             }
-            return true;
-        });
+
+            holder.tvQuantity.setText(String.valueOf(itemWithName.item.getCount()));
+
+            // 过期时间
+            if (itemWithName.item.getValidTime() != 0) {
+                holder.tvExpire.setText(dateFormat.format(itemWithName.item.getValidTime()));
+            } else {
+                holder.tvExpire.setText("无");
+            }
+
+            // 物品说明
+            if (itemWithName.item.getRemark() != null && !itemWithName.item.getRemark().isEmpty()) {
+                holder.tvDesc.setVisibility(View.VISIBLE);
+                holder.tvDesc.setText(itemWithName.item.getRemark());
+            } else {
+                holder.tvDesc.setVisibility(View.GONE);
+            }
+
+            // 多选模式处理
+            holder.cbSelect.setOnCheckedChangeListener(null);
+            holder.cbSelect.setVisibility(isMultiSelectMode ? View.VISIBLE : View.GONE);
+            holder.cbSelect.setChecked(selectedUuids.contains(itemWithName.item.getUuid()));
+            holder.cbSelect.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                updateSelectionState(itemWithName.item.getUuid(), isChecked);
+            });
+
+            // 条目点击事件：仅跳转详情（多选模式下切换选中状态）
+            holder.itemView.setOnClickListener(v -> {
+                if (isMultiSelectMode) {
+                    holder.cbSelect.setChecked(!holder.cbSelect.isChecked());
+                } else {
+                    if (itemClickListener != null) {
+                        // 传递Item，因为ItemDetailActivity只需要Item对象
+                        itemClickListener.onItemClick(itemWithName.item);
+                    }
+                }
+            });
+
+            // 条目长按事件：进入多选模式
+            holder.itemView.setOnLongClickListener(v -> {
+                if (!isMultiSelectMode) {
+                    setMultiSelectMode(true);
+                    holder.cbSelect.setChecked(true);
+                }
+                return true;
+            });
+        }
     }
 
     /**
@@ -123,7 +142,7 @@ public class QueryAdapter extends RecyclerView.Adapter<QueryAdapter.ItemViewHold
     }
 
     // 设置数据
-    public void setItemList(List<Item> newList) {
+    public void setItemList(List<ItemWithName> newList) {
         this.itemList = newList;
         if (isMultiSelectMode) {
             setMultiSelectMode(false);
@@ -169,7 +188,7 @@ public class QueryAdapter extends RecyclerView.Adapter<QueryAdapter.ItemViewHold
 
     // 点击事件回调接口（仅跳转详情）
     public interface OnItemClickListener {
-        void onItemClick(Item item);
+        void onItemClick(com.baixiaosheng.inventory.database.entity.Item item); // 使用全限定名
     }
 
     // 多选状态变化回调

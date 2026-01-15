@@ -48,7 +48,7 @@ public abstract class InventoryDatabase extends RoomDatabase {
                                     InventoryDatabase.class,
                                     DATABASE_NAME
                             )
-                            .allowMainThreadQueries() // 注意：正式环境需替换为异步操作，此处为测试方便
+                            // .allowMainThreadQueries() 注意：正式环境需替换为异步操作，此处为测试方便
                             .build();
                 }
             }
