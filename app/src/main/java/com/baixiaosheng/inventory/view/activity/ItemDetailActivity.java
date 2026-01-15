@@ -82,6 +82,7 @@ public class ItemDetailActivity extends AppCompatActivity {
     private void loadItemData() {
         // 查询物品详情
         queryViewModel.getItemById(itemId).observe(this, item -> {
+            if (isFinishing() || isDestroyed()) return; // 增加生命周期校验
             if (item == null) {
                 Toast.makeText(this, "物品不存在", Toast.LENGTH_SHORT).show();
                 finish();

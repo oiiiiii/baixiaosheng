@@ -21,7 +21,7 @@ import java.util.Locale;
 /**
  * 查询页物品列表适配器：支持单选/长按多选（修复计数错误 + 匹配布局ID）
  */
-public class InventoryQueryAdapter extends RecyclerView.Adapter<InventoryQueryAdapter.ItemViewHolder> {
+public class QueryAdapter extends RecyclerView.Adapter<QueryAdapter.ItemViewHolder> {
     // 数据
     private final Context context;
     private List<Item> itemList = new ArrayList<>();
@@ -37,7 +37,7 @@ public class InventoryQueryAdapter extends RecyclerView.Adapter<InventoryQueryAd
     // 日期格式化
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.CHINA);
 
-    public InventoryQueryAdapter(Context context) {
+    public QueryAdapter(Context context) {
         this.context = context;
     }
 
@@ -86,8 +86,10 @@ public class InventoryQueryAdapter extends RecyclerView.Adapter<InventoryQueryAd
                 // 多选模式：切换选中状态（直接操作复选框，由监听处理计数）
                 holder.cbSelect.setChecked(!holder.cbSelect.isChecked());
             } else {
-                // 普通模式：弹出操作菜单（查看/编辑/删除）
-                showItemOperationMenu(item);
+                // 普通模式：直接触发查看详情
+                if (itemClickListener != null) {
+                    itemClickListener.onItemClick(item);
+                }
             }
         });
 
@@ -104,36 +106,8 @@ public class InventoryQueryAdapter extends RecyclerView.Adapter<InventoryQueryAd
     }
 
     /**
-     * 新增：物品操作菜单（查看/编辑/删除）
+     * 修改：单击单个物品直接跳转到ItemDetailActivity
      */
-    private void showItemOperationMenu(Item item) {
-        new AlertDialog.Builder(context)
-                .setTitle("操作选项")
-                .setItems(new String[]{"查看详情", "编辑物品", "删除物品"}, (dialog, which) -> {
-                    switch (which) {
-                        case 0:
-                            // 查看详情
-                            if (itemClickListener != null) {
-                                itemClickListener.onItemClick(item);
-                            }
-                            break;
-                        case 1:
-                            // 编辑物品
-                            if (editListener != null) {
-                                editListener.onItemEdit(item);
-                            }
-                            break;
-                        case 2:
-                            // 删除物品（复用原有删除逻辑，通过itemClickListener透传）
-                            if (itemClickListener != null) {
-                                itemClickListener.onItemClick(item);
-                            }
-                            break;
-                    }
-                })
-                .create()
-                .show();
-    }
 
     /**
      * 统一更新选中状态（核心修复：防重复、单入口计数）

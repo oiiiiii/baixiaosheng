@@ -1,6 +1,7 @@
 package com.baixiaosheng.inventory.view.fragment;
 
 import android.app.DatePickerDialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -8,7 +9,6 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -25,18 +25,16 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.baixiaosheng.inventory.R;
-import com.baixiaosheng.inventory.view.adapter.InventoryQueryAdapter;
+import com.baixiaosheng.inventory.utils.DateUtils;
+import com.baixiaosheng.inventory.view.adapter.QueryAdapter;
 import com.baixiaosheng.inventory.database.entity.Item;
 import com.baixiaosheng.inventory.model.FilterCondition;
 import com.baixiaosheng.inventory.viewmodel.QueryViewModel;
 import com.baixiaosheng.inventory.view.activity.MainActivity;
+import com.baixiaosheng.inventory.view.activity.ItemDetailActivity;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * 查询页Fragment：核心筛选+列表交互逻辑
@@ -52,13 +50,12 @@ public class QueryFragment extends Fragment {
     private Button btnResetFilter, btnApplyFilter, btnBatchDelete;
     private RecyclerView rvInventoryList;
     // 适配器
-    private InventoryQueryAdapter adapter;
+    private QueryAdapter adapter;
     // ViewModel
     private QueryViewModel queryViewModel;
     // 筛选条件
     private final FilterCondition filterCondition = new FilterCondition();
-    // 日期格式化
-    private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.CHINA);
+
 
     @Nullable
     @Override
@@ -104,15 +101,15 @@ public class QueryFragment extends Fragment {
 
     // 初始化适配器
     private void initAdapter() {
-        adapter = new InventoryQueryAdapter(getContext());
+        adapter = new QueryAdapter(getContext());
         rvInventoryList.setAdapter(adapter);
 
-        // 设置适配器回调
+        // 设置适配器回调：点击物品直接跳转ItemDetailActivity
         adapter.setOnItemClickListener(this::showItemOperationDialog);
         // 新增：绑定编辑监听
         adapter.setOnItemEditListener(this::jumpToEditFragment);
 
-        adapter.setOnMultiSelectChangeListener(new InventoryQueryAdapter.OnMultiSelectChangeListener() {
+        adapter.setOnMultiSelectChangeListener(new QueryAdapter.OnMultiSelectChangeListener() {
             @Override
             public void onSelectModeChanged(boolean isMultiSelect) {
                 // 显示/隐藏批量操作区
@@ -252,26 +249,29 @@ public class QueryFragment extends Fragment {
             public void onNothingSelected(AdapterView<?> parent) {}
         });
 
-        // 过期开始日期选择
+
+        // 过期开始日期选择（修改后）
         tvExpireStart.setOnClickListener(v -> {
             Calendar calendar = Calendar.getInstance();
             DatePickerDialog dialog = new DatePickerDialog(getContext(), (view1, year, month, dayOfMonth) -> {
                 Calendar selected = Calendar.getInstance();
                 selected.set(year, month, dayOfMonth);
                 filterCondition.setExpireStart(selected.getTime());
-                tvExpireStart.setText(dateFormat.format(selected.getTime()));
+                // 替换为DateUtils工具类
+                tvExpireStart.setText(DateUtils.formatDateToYmd(selected.getTime()));
             }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
             dialog.show();
         });
 
-        // 过期结束日期选择
+// 过期结束日期选择（修改后）
         tvExpireEnd.setOnClickListener(v -> {
             Calendar calendar = Calendar.getInstance();
             DatePickerDialog dialog = new DatePickerDialog(getContext(), (view1, year, month, dayOfMonth) -> {
                 Calendar selected = Calendar.getInstance();
                 selected.set(year, month, dayOfMonth);
                 filterCondition.setExpireEnd(selected.getTime());
-                tvExpireEnd.setText(dateFormat.format(selected.getTime()));
+                // 替换为DateUtils工具类
+                tvExpireEnd.setText(DateUtils.formatDateToYmd(selected.getTime()));
             }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
             dialog.show();
         });
@@ -335,61 +335,19 @@ public class QueryFragment extends Fragment {
         });
     }
 
-    // 显示物品操作弹窗
+    // 物品操作：直接跳转ItemDetailActivity（移除原弹窗逻辑）
     private void showItemOperationDialog(Item item) {
-        View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_item_operation, null);
-        Button btnViewDetail = dialogView.findViewById(R.id.tv_view_detail);
-        Button btnEditItem = dialogView.findViewById(R.id.tv_edit);
-        Button btnDeleteItem = dialogView.findViewById(R.id.tv_delete);
-
-        AlertDialog dialog = new AlertDialog.Builder(getContext())
-                .setView(dialogView)
-                .create();
-        dialog.show();
-
-        // 查看详情
-        btnViewDetail.setOnClickListener(v -> {
-            dialog.dismiss();
-            showItemDetailDialog(item);
-        });
-
-        // 编辑（跳转到编辑Fragment）
-        btnEditItem.setOnClickListener(v -> {
-            dialog.dismiss();
-            jumpToEditFragment(item);
-        });
-
-        // 删除
-        btnDeleteItem.setOnClickListener(v -> {
-            dialog.dismiss();
-            new AlertDialog.Builder(getContext())
-                    .setTitle("删除物品")
-                    .setMessage("确定要将【" + item.getName() + "】移入回收站吗？")
-                    .setPositiveButton("确定", (d, which) -> {
-                        queryViewModel.deleteItem(item.getUuid());
-                        Toast.makeText(getContext(), "删除成功", Toast.LENGTH_SHORT).show();
-                    })
-                    .setNegativeButton("取消", null)
-                    .show();
-        });
+        // 先校验item非空
+        if (item == null) {
+            Toast.makeText(getContext(), "物品数据异常", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        // 跳转到ItemDetailActivity
+        Intent intent = new Intent(getContext(), ItemDetailActivity.class);
+        // 传递物品数据（Item需实现Serializable接口）
+        intent.putExtra("item_id", item.getId());
+        startActivity(intent);
     }
 
-    // 显示物品详情弹窗
-    private void showItemDetailDialog(Item item) {
-        StringBuilder detail = new StringBuilder();
-        detail.append("物品名称：").append(item.getName()).append("\n");
-        detail.append("唯一标识：").append(item.getUuid()).append("\n");
-        detail.append("父分类：").append(item.getParentCategoryId()).append("\n");
-        detail.append("子分类：").append(item.getChildCategoryId()).append("\n");
-        detail.append("放置位置：").append(item.getLocationId() == 0 ? "未设置" : item.getLocationId()).append("\n");
-        detail.append("数量：").append(item.getCount()).append("\n");
-        detail.append("过期时间：").append(item.getValidTime() != 0 ? dateFormat.format(item.getValidTime()) : "无").append("\n");
-        detail.append("物品说明：").append(item.getRemark() != null ? item.getRemark() : "无").append("\n");
-
-        new AlertDialog.Builder(getContext())
-                .setTitle("物品详情")
-                .setMessage(detail.toString())
-                .setPositiveButton("关闭", null)
-                .show();
-    }
+    // 移除原有的showItemDetailDialog和replaceLine方法（已无需使用）
 }
