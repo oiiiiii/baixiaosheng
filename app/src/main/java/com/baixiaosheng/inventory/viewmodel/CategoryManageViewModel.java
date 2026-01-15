@@ -25,6 +25,7 @@ public class CategoryManageViewModel extends AndroidViewModel {
     private final MutableLiveData<List<Category>> mCategoryList;
     private final MutableLiveData<Boolean> mOperationSuccess;
     private final MutableLiveData<String> mErrorMsg;
+    private final MutableLiveData<List<Category>> mParentCategoryListLiveData;
 
     public CategoryManageViewModel(@NonNull Application application) {
         super(application);
@@ -34,8 +35,11 @@ public class CategoryManageViewModel extends AndroidViewModel {
         mCategoryList = new MutableLiveData<>();
         mOperationSuccess = new MutableLiveData<>();
         mErrorMsg = new MutableLiveData<>();
+        mParentCategoryListLiveData = new MutableLiveData<>();
         // 加载所有分类
         loadAllCategories();
+        // 初始化时加载父分类
+        refreshParentCategories();
     }
 
     /**
@@ -74,6 +78,8 @@ public class CategoryManageViewModel extends AndroidViewModel {
                 mOperationSuccess.postValue(true);
                 // 重新加载列表
                 loadAllCategories();
+                // 新增：刷新父分类列表
+                refreshParentCategories();
             } catch (Exception e) {
                 mErrorMsg.postValue("添加分类失败：" + e.getMessage());
                 mOperationSuccess.postValue(false);
@@ -112,11 +118,13 @@ public class CategoryManageViewModel extends AndroidViewModel {
                 mOperationSuccess.postValue(true);
                 // 重新加载列表
                 loadAllCategories();
+                refreshParentCategories();
             } catch (Exception e) {
                 mErrorMsg.postValue("更新分类失败：" + e.getMessage());
                 mOperationSuccess.postValue(false);
             }
         });
+
     }
 
     /**
@@ -150,6 +158,7 @@ public class CategoryManageViewModel extends AndroidViewModel {
                 mOperationSuccess.postValue(true);
                 // 重新加载列表
                 loadAllCategories();
+                refreshParentCategories();
             } catch (Exception e) {
                 mErrorMsg.postValue("删除分类失败：" + e.getMessage());
                 mOperationSuccess.postValue(false);
@@ -160,13 +169,23 @@ public class CategoryManageViewModel extends AndroidViewModel {
     /**
      * 获取所有父分类（用于Spinner选择）
      */
+
+
     public LiveData<List<Category>> getParentCategories(long parentId) {
-        MutableLiveData<List<Category>> liveData = new MutableLiveData<>();
+        // 忽略parentId参数（原逻辑是加载所有可作为父分类的项），直接返回成员变量
+        return mParentCategoryListLiveData;
+    }
+
+
+    /**
+     * 刷新父分类列表（供Activity调用）
+     */
+    public void refreshParentCategories() {
         mExecutorService.execute(() -> {
-            List<Category> parentCategories = mCategoryDao.getParentCategories(parentId); // 需在CategoryDao中实现该方法
-            liveData.postValue(parentCategories);
+            List<Category> parentCategories = mCategoryDao.getParentCategories(0);
+            // 注意：需要新增一个MutableLiveData专门存储父分类列表
+            mParentCategoryListLiveData.postValue(parentCategories);
         });
-        return liveData;
     }
 
 

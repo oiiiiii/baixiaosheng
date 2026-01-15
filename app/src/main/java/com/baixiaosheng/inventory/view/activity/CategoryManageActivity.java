@@ -1,6 +1,8 @@
 package com.baixiaosheng.inventory.view.activity;
 
+import android.content.Context;
 import android.os.Bundle;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -75,25 +77,50 @@ public class CategoryManageActivity extends AppCompatActivity {
             mAdapter.updateData(categories);
         });
 
-        // 观察父分类列表（用于Spinner）
+
+        // 重构：观察父分类列表（核心修改）
         mViewModel.getParentCategories(0).observe(this, parentCategories -> {
             mParentCategoryList = parentCategories;
-            // 构建Spinner适配器
-            String[] parentNames = new String[parentCategories.size() + 1];
-            parentNames[0] = "无父分类";
-            for (int i = 0; i < parentCategories.size(); i++) {
-                parentNames[i + 1] = parentCategories.get(i).getName();
-            }
-            ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                    android.R.layout.simple_spinner_item, parentNames);
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            spParentCategory.setAdapter(adapter);
+            // 每次父分类数据变化时，重新构建Spinner适配器并设置
+            updateParentCategorySpinner();
         });
 
-        // 观察操作错误信息
+        // 观察操作错误信息（原有逻辑不变）
         mViewModel.getErrorMsg().observe(this, errorMsg -> {
             showAlertDialog("错误", errorMsg, false);
         });
+
+        // 新增：观察操作成功状态，确保UI提示和状态重置（可选，优化体验）
+        mViewModel.getOperationSuccess().observe(this, isSuccess -> {
+            if (isSuccess) {
+                // 操作成功后重置编辑状态（原逻辑在btnAdd点击里，移到这里更合理）
+                resetEditState();
+                // 操作成功提示（根据编辑状态判断提示语）
+                String tip = mEditingCategoryId == 0 ? "分类添加成功" :
+                        (mPendingDeleteCategoryId != 0 ? "分类删除成功" : "分类修改成功");
+                Toast toast = Toast.makeText(this, tip, Toast.LENGTH_SHORT);
+                toast.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, dp2px(this, 100));
+                toast.show();
+            }
+        });
+    }
+
+    // 新增：独立的Spinner更新方法（复用性更高）
+    private void updateParentCategorySpinner() {
+        if (mParentCategoryList == null) {
+            mParentCategoryList = new ArrayList<>();
+        }
+        // 构建Spinner选项数组
+        String[] parentNames = new String[mParentCategoryList.size() + 1];
+        parentNames[0] = "无父分类";
+        for (int i = 0; i < mParentCategoryList.size(); i++) {
+            parentNames[i + 1] = mParentCategoryList.get(i).getName();
+        }
+        // 创建新的适配器（或更新原有适配器的数据源）
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, parentNames);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spParentCategory.setAdapter(adapter);
     }
 
     /**
@@ -121,18 +148,16 @@ public class CategoryManageActivity extends AppCompatActivity {
             category.setName(categoryName);
             category.setParentId(parentId);
 
-            // 新增/更新逻辑
+            // ========== 新增核心逻辑 ==========
             if (mEditingCategoryId == 0) {
+                // 新增分类：调用ViewModel的添加方法
                 mViewModel.addCategory(category);
-                showAlertDialog("成功", "分类添加成功", false);
             } else {
+                // 编辑分类：设置ID并调用更新方法
                 category.setId(mEditingCategoryId);
                 mViewModel.updateCategory(category);
-                showAlertDialog("成功", "分类修改成功", false);
             }
 
-            // 重置编辑状态
-            resetEditState();
         });
     }
 
@@ -173,18 +198,11 @@ public class CategoryManageActivity extends AppCompatActivity {
         });
     }
 
-    /**
-     * 补充缺失的checkItemCountByCategoryId方法（ViewModel中）
-     * 如需临时兼容，可先在CategoryManageViewModel中添加：
-     * public LiveData<Integer> checkItemCountByCategoryId(long categoryId) {
-     *     MutableLiveData<Integer> liveData = new MutableLiveData<>();
-     *     mExecutorService.execute(() -> {
-     *         int count = mCategoryDao.getRelatedItemCount(categoryId);
-     *         liveData.postValue(count);
-     *     });
-     *     return liveData;
-     * }
-     */
+    // 补充dp转px方法（放在CategoryManageActivity类中，与其他方法同级）
+    private int dp2px(Context context, float dpValue) {
+        final float scale = context.getResources().getDisplayMetrics().density;
+        return (int) (dpValue * scale + 0.5f);
+    }
 
     /**
      * 通用弹窗提示
@@ -204,7 +222,6 @@ public class CategoryManageActivity extends AppCompatActivity {
                 // 执行删除操作
                 mViewModel.deleteCategory(mPendingDeleteCategoryId);
                 mPendingDeleteCategoryId = 0;
-                showAlertDialog("成功", "分类删除成功", false);
             }
             dialog.dismiss();
         });
