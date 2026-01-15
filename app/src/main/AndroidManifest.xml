@@ -94,6 +94,9 @@
         <activity
             android:name=".view.activity.ItemDetailActivity"
             android:exported="false" />
+        <activity
+            android:name=".view.activity.InputActivity"
+            android:exported="false" />
 
 
         <!-- FileProvider配置 -->

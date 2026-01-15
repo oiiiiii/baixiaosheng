@@ -1,5 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/fl_input_container"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"/>
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <!-- 可选：添加标题栏/返回按钮 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:text="编辑物品"
+        android:gravity="center"
+        android:background="@color/white"
+        android:textSize="18sp"/>
+
+    <!-- Fragment容器：ID必须唯一，且和MainActivity的容器区分 -->
+    <FrameLayout
+        android:id="@+id/fl_input_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
+</LinearLayout>

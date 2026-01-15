@@ -155,7 +155,9 @@ public class ItemDetailActivity extends AppCompatActivity {
                 return;
             }
             Intent intent = new Intent(this, InputActivity.class);
-            intent.putExtra("item_id", currentItem.getId());
+
+            // 修正：传递序列化的 Item 对象（而非 item_id）
+            intent.putExtra("edit_item", currentItem);
             startActivity(intent);
             // 编辑后关闭详情页，返回列表页
             finish();
