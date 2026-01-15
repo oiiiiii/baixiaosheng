@@ -15,6 +15,10 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.baixiaosheng.inventory.R;
 import com.baixiaosheng.inventory.model.SettingEntry;
 import com.baixiaosheng.inventory.utils.DefaultDataUtils;
+import com.baixiaosheng.inventory.view.activity.AboutActivity;
+import com.baixiaosheng.inventory.view.activity.CategoryManageActivity;
+import com.baixiaosheng.inventory.view.activity.LocationManageActivity;
+import com.baixiaosheng.inventory.view.activity.RecycleActivity;
 import com.baixiaosheng.inventory.view.adapter.SettingAdapter;
 import com.baixiaosheng.inventory.view.activity.DataManageActivity;
 
@@ -63,23 +67,32 @@ public class SettingFragment extends Fragment {
         settingAdapter = new SettingAdapter(entryList, new SettingAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(SettingEntry entry) {
+
+                // 先校验上下文和Fragment状态，避免空指针
+                if (getContext() == null || !isAdded() || isDetached()) {
+                    return;
+                }
                 // 处理条目点击逻辑
                 switch (entry) {
                     case CATEGORY_MANAGE:
-                        // 原有逻辑
+                        startActivity(new Intent(requireContext(), CategoryManageActivity.class));
                         break;
                     case LOCATION_MANAGE:
-                        // 原有逻辑
+                        startActivity(new Intent(requireContext(), LocationManageActivity.class));
                         break;
                     case RECYCLE_BIN:
-                        // 原有逻辑
+                        startActivity(new Intent(requireContext(), RecycleActivity.class));
                         break;
                     case ABOUT:
-                        // 原有逻辑
+                        startActivity(new Intent(requireContext(), AboutActivity.class));
                         break;
                     case DATA_MANAGE:
                         // 跳转数据管理页面
-                        startActivity(new Intent(getContext(), DataManageActivity.class));
+                        startActivity(new Intent(requireContext(), DataManageActivity.class));
+                        break;
+
+                    // 新增default分支，避免枚举扩展后漏处理
+                    default:
                         break;
                 }
             }

@@ -86,8 +86,15 @@
             android:name=".view.activity.CategoryManageActivity"
             android:exported="false" />
         <activity
+            android:name=".view.activity.DataManageActivity"
+            android:exported="false" />
+        <activity
             android:name=".view.activity.LocationManageActivity"
             android:exported="false" />
+        <activity
+            android:name=".view.activity.ItemDetailActivity"
+            android:exported="false" />
+
 
         <!-- FileProvider配置 -->
         <provider

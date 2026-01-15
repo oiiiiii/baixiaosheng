@@ -38,11 +38,19 @@ public class SettingAdapter extends RecyclerView.Adapter<SettingAdapter.SettingV
         return new SettingViewHolder(view);
     }
 
+
+
+    // 修改 SettingAdapter.java 的 onBindViewHolder 方法
     @Override
     public void onBindViewHolder(@NonNull SettingViewHolder holder, int position) {
         SettingEntry entry = mEntryList.get(position);
         holder.tvEntryName.setText(entry.getName());
-        holder.itemView.setOnClickListener(v -> mOnItemClickListener.onItemClick(entry));
+        // 校验回调不为空，避免空指针
+        holder.itemView.setOnClickListener(v -> {
+            if (mOnItemClickListener != null) {
+                mOnItemClickListener.onItemClick(entry);
+            }
+        });
     }
 
     @Override
