@@ -7,20 +7,19 @@ import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
-import com.baixiaosheng.inventory.database.InventoryDatabase;
+import com.baixiaosheng.inventory.database.DatabaseManager;
 import com.baixiaosheng.inventory.database.entity.Category;
-import com.baixiaosheng.inventory.database.dao.CategoryDao;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * 分类管理ViewModel
+ * 分类管理ViewModel（简化删除逻辑版）
  */
 public class CategoryManageViewModel extends AndroidViewModel {
 
-    private final CategoryDao mCategoryDao;
+    private final DatabaseManager mDbManager;
     private final ExecutorService mExecutorService;
     private final MutableLiveData<List<Category>> mCategoryList;
     private final MutableLiveData<Boolean> mOperationSuccess;
@@ -29,16 +28,13 @@ public class CategoryManageViewModel extends AndroidViewModel {
 
     public CategoryManageViewModel(@NonNull Application application) {
         super(application);
-        InventoryDatabase database = InventoryDatabase.getInstance(application);
-        mCategoryDao = database.categoryDao();
+        mDbManager = DatabaseManager.getInstance(application.getApplicationContext());
         mExecutorService = Executors.newSingleThreadExecutor();
         mCategoryList = new MutableLiveData<>();
         mOperationSuccess = new MutableLiveData<>();
         mErrorMsg = new MutableLiveData<>();
         mParentCategoryListLiveData = new MutableLiveData<>();
-        // 加载所有分类
         loadAllCategories();
-        // 初始化时加载父分类
         refreshParentCategories();
     }
 
@@ -47,7 +43,7 @@ public class CategoryManageViewModel extends AndroidViewModel {
      */
     public void loadAllCategories() {
         mExecutorService.execute(() -> {
-            List<Category> categories = mCategoryDao.getAllCategories();
+            List<Category> categories = mDbManager.listAllCategories();
             mCategoryList.postValue(categories);
         });
     }
@@ -58,27 +54,22 @@ public class CategoryManageViewModel extends AndroidViewModel {
     public void addCategory(Category category) {
         mExecutorService.execute(() -> {
             try {
-                // 校验分类名称非空
-                if (category.getName() == null || category.getName().trim().isEmpty()) {
+                if (category.getCategoryName() == null || category.getCategoryName().trim().isEmpty()) {
                     mErrorMsg.postValue("分类名称不能为空");
                     mOperationSuccess.postValue(false);
                     return;
                 }
-                // 校验父分类是否存在（如果有父分类）
-                if (category.getParentId() != 0) {
-                    Category parent = mCategoryDao.getCategoryById(category.getParentId());
+                if (category.getParentCategoryId() != 0) {
+                    Category parent = mDbManager.getCategoryById(category.getParentCategoryId());
                     if (parent == null) {
                         mErrorMsg.postValue("父分类不存在");
                         mOperationSuccess.postValue(false);
                         return;
                     }
                 }
-                // 插入分类
-                mCategoryDao.insertCategory(category);
+                mDbManager.addCategory(category);
                 mOperationSuccess.postValue(true);
-                // 重新加载列表
                 loadAllCategories();
-                // 新增：刷新父分类列表
                 refreshParentCategories();
             } catch (Exception e) {
                 mErrorMsg.postValue("添加分类失败：" + e.getMessage());
@@ -93,30 +84,13 @@ public class CategoryManageViewModel extends AndroidViewModel {
     public void updateCategory(Category category) {
         mExecutorService.execute(() -> {
             try {
-                // 校验分类名称非空
-                if (category.getName() == null || category.getName().trim().isEmpty()) {
+                if (category.getCategoryName() == null || category.getCategoryName().trim().isEmpty()) {
                     mErrorMsg.postValue("分类名称不能为空");
                     mOperationSuccess.postValue(false);
                     return;
                 }
-                // 校验父分类是否存在（如果有父分类）
-                if (category.getParentId() != 0) {
-                    Category parent = mCategoryDao.getCategoryById(category.getParentId());
-                    if (parent == null) {
-                        mErrorMsg.postValue("父分类不存在");
-                        mOperationSuccess.postValue(false);
-                        return;
-                    }
-                }
-                // 级联校验：如果当前分类是父分类，不允许删除（此处是更新，仅提示）
-                List<Category> childCategories = mCategoryDao.getChildCategoriesByParentId(category.getId());
-                if (!childCategories.isEmpty()) {
-                    mErrorMsg.postValue("该分类下存在子分类，更新前请确认子分类关联关系");
-                }
-                // 更新分类
-                mCategoryDao.updateCategory(category);
+                mDbManager.updateCategory(category);
                 mOperationSuccess.postValue(true);
-                // 重新加载列表
                 loadAllCategories();
                 refreshParentCategories();
             } catch (Exception e) {
@@ -124,39 +98,38 @@ public class CategoryManageViewModel extends AndroidViewModel {
                 mOperationSuccess.postValue(false);
             }
         });
-
     }
 
     /**
-     * 删除分类
+     * 直接删除分类（核心简化）
      */
     public void deleteCategory(long categoryId) {
         mExecutorService.execute(() -> {
             try {
-                // 1. 校验是否有关联物品
-                int itemCount = mCategoryDao.getRelatedItemCount(categoryId);
-                if (itemCount > 0) {
-                    mErrorMsg.postValue("该分类关联" + itemCount + "个物品，无法删除");
+                Category targetCategory = mDbManager.getCategoryById(categoryId);
+                if (targetCategory == null) {
+                    mErrorMsg.postValue("分类不存在，无法删除");
                     mOperationSuccess.postValue(false);
                     return;
                 }
-                // 2. 级联校验：是否有子分类
-                List<Category> childCategories = mCategoryDao.getChildCategoriesByParentId(categoryId);
-                if (!childCategories.isEmpty()) {
-                    mErrorMsg.postValue("该分类下存在" + childCategories.size() + "个子分类，无法删除");
-                    mOperationSuccess.postValue(false);
-                    return;
+
+                // 处理分类关联的物品：清空物品的分类关联
+                if (targetCategory.getParentCategoryId() == 0) {
+                    // 父分类：清空物品父分类ID + 所有子分类关联的物品子分类ID
+                    mDbManager.clearItemCategoryByParentId(categoryId);
+                    List<Category> childCategories = mDbManager.listChildCategoriesByParentId(categoryId);
+                    for (Category child : childCategories) {
+                        mDbManager.clearItemCategoryByChildId(child.getId());
+                        mDbManager.deleteCategoryById(child.getId());
+                    }
+                } else {
+                    // 子分类：仅清空物品子分类ID
+                    mDbManager.clearItemCategoryByChildId(categoryId);
                 }
-                // 3. 执行删除
-// 3. 执行删除
-                int deleteCount = mCategoryDao.deleteCategoryById(categoryId);
-                if (deleteCount == 0) {
-                    mErrorMsg.postValue("分类不存在，删除失败");
-                    mOperationSuccess.postValue(false);
-                    return;
-                }
+
+                // 删除目标分类
+                mDbManager.deleteCategoryById(categoryId);
                 mOperationSuccess.postValue(true);
-                // 重新加载列表
                 loadAllCategories();
                 refreshParentCategories();
             } catch (Exception e) {
@@ -169,34 +142,20 @@ public class CategoryManageViewModel extends AndroidViewModel {
     /**
      * 获取所有父分类（用于Spinner选择）
      */
-
-
-    public LiveData<List<Category>> getParentCategories(long parentId) {
-        // 忽略parentId参数（原逻辑是加载所有可作为父分类的项），直接返回成员变量
+    public LiveData<List<Category>> getParentCategories() {
         return mParentCategoryListLiveData;
     }
 
-
     /**
-     * 刷新父分类列表（供Activity调用）
+     * 刷新父分类列表
      */
     public void refreshParentCategories() {
         mExecutorService.execute(() -> {
-            List<Category> parentCategories = mCategoryDao.getParentCategories(0);
-            // 注意：需要新增一个MutableLiveData专门存储父分类列表
+            List<Category> parentCategories = mDbManager.listTopLevelParentCategories();
             mParentCategoryListLiveData.postValue(parentCategories);
         });
     }
 
-
-    public LiveData<Integer> checkItemCountByCategoryId(long categoryId) {
-        MutableLiveData<Integer> liveData = new MutableLiveData<>();
-        mExecutorService.execute(() -> {
-            int count = mCategoryDao.getRelatedItemCount(categoryId);
-            liveData.postValue(count);
-        });
-        return liveData;
-    }
     // 对外暴露LiveData
     public LiveData<List<Category>> getCategoryList() {
         return mCategoryList;
@@ -213,7 +172,6 @@ public class CategoryManageViewModel extends AndroidViewModel {
     @Override
     protected void onCleared() {
         super.onCleared();
-        // 关闭线程池
         mExecutorService.shutdown();
     }
 }

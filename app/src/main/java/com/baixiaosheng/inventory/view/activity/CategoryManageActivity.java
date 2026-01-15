@@ -1,7 +1,6 @@
 package com.baixiaosheng.inventory.view.activity;
 
 import android.content.Context;
-import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -28,7 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 分类管理页面（弹窗交互版）
+ * 分类管理页面（简化删除逻辑版）
  */
 public class CategoryManageActivity extends AppCompatActivity {
 
@@ -41,17 +40,16 @@ public class CategoryManageActivity extends AppCompatActivity {
     private CategoryAdapter mAdapter;
     private List<Category> mParentCategoryList;
     private long mEditingCategoryId = 0; // 编辑中的分类ID，0表示新增
-    private long mPendingDeleteCategoryId = 0; // 待删除的分类ID
 
-    private String btnDefaultText; // 仅保留默认文字备份
-    private Handler mHandler = new Handler(Looper.getMainLooper()); // 主线程Handler
+    private String btnDefaultText;
+    private Handler mHandler = new Handler(Looper.getMainLooper());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_category_manage);
         initView();
-        initBtnDefaultStyle(); // 初始化按钮默认样式
+        initBtnDefaultStyle();
         initViewModel();
         initListener();
     }
@@ -70,9 +68,7 @@ public class CategoryManageActivity extends AppCompatActivity {
         spParentCategory = findViewById(R.id.sp_parent_category);
         btnAddCategory = findViewById(R.id.btn_add_category);
         rvCategoryList = findViewById(R.id.rv_category_list);
-        // 设置RecyclerView布局
         rvCategoryList.setLayoutManager(new LinearLayoutManager(this));
-        // 初始化适配器：传入空列表 + 编辑/删除回调
         mAdapter = new CategoryAdapter(new ArrayList<>(), this::handleEditClick, this::handleDeleteClick);
         rvCategoryList.setAdapter(mAdapter);
     }
@@ -81,7 +77,6 @@ public class CategoryManageActivity extends AppCompatActivity {
      * 初始化按钮默认样式（仅保留文字备份）
      */
     private void initBtnDefaultStyle() {
-        // 仅保存默认文字
         btnDefaultText = btnAddCategory.getText().toString();
     }
 
@@ -93,14 +88,12 @@ public class CategoryManageActivity extends AppCompatActivity {
 
         // 观察分类列表
         mViewModel.getCategoryList().observe(this, categories -> {
-            // 使用Adapter的updateData方法更新数据
             mAdapter.updateData(categories);
         });
 
         // 观察父分类列表
-        mViewModel.getParentCategories(0).observe(this, parentCategories -> {
+        mViewModel.getParentCategories().observe(this, parentCategories -> {
             mParentCategoryList = parentCategories;
-            // 每次父分类数据变化时，重新构建Spinner适配器并设置
             updateParentCategorySpinner();
         });
 
@@ -109,15 +102,11 @@ public class CategoryManageActivity extends AppCompatActivity {
             showAlertDialog("错误", errorMsg, false);
         });
 
-        // 观察操作成功状态，仅修改按钮文字并延时恢复
+        // 观察操作成功状态
         mViewModel.getOperationSuccess().observe(this, isSuccess -> {
             if (isSuccess) {
                 resetEditState();
-
-                // 1. 设置按钮文字为OK
                 btnAddCategory.setText("OK");
-
-                // 2. 延迟恢复按钮文字
                 mHandler.removeCallbacks(mRestoreBtnRunnable);
                 mHandler.postDelayed(mRestoreBtnRunnable, 1000);
             }
@@ -125,12 +114,11 @@ public class CategoryManageActivity extends AppCompatActivity {
     }
 
     /**
-     * 按钮文字恢复任务（仅恢复文字）
+     * 按钮文字恢复任务
      */
     private Runnable mRestoreBtnRunnable = new Runnable() {
         @Override
         public void run() {
-            // 恢复原始文字
             btnAddCategory.setText(btnDefaultText);
         }
     };
@@ -140,13 +128,11 @@ public class CategoryManageActivity extends AppCompatActivity {
         if (mParentCategoryList == null) {
             mParentCategoryList = new ArrayList<>();
         }
-        // 构建Spinner选项数组
         String[] parentNames = new String[mParentCategoryList.size() + 1];
         parentNames[0] = "无父分类";
         for (int i = 0; i < mParentCategoryList.size(); i++) {
-            parentNames[i + 1] = mParentCategoryList.get(i).getName();
+            parentNames[i + 1] = mParentCategoryList.get(i).getCategoryName();
         }
-        // 创建新的适配器
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
                 android.R.layout.simple_spinner_item, parentNames);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -175,18 +161,15 @@ public class CategoryManageActivity extends AppCompatActivity {
 
             // 构建分类对象
             Category category = new Category();
-            category.setName(categoryName);
-            category.setParentId(parentId);
+            category.setCategoryName(categoryName);
+            category.setParentCategoryId(parentId);
 
             if (mEditingCategoryId == 0) {
-                // 新增分类：调用ViewModel的添加方法
                 mViewModel.addCategory(category);
             } else {
-                // 编辑分类：设置ID并调用更新方法
                 category.setId(mEditingCategoryId);
                 mViewModel.updateCategory(category);
             }
-
         });
     }
 
@@ -195,13 +178,12 @@ public class CategoryManageActivity extends AppCompatActivity {
      */
     private void handleEditClick(Category category) {
         mEditingCategoryId = category.getId();
-        etCategoryName.setText(category.getName());
-        // 设置父分类选择
-        if (category.getParentId() == 0) {
+        etCategoryName.setText(category.getCategoryName());
+        if (category.getParentCategoryId() == 0) {
             spParentCategory.setSelection(0);
         } else {
             for (int i = 0; i < mParentCategoryList.size(); i++) {
-                if (mParentCategoryList.get(i).getId() == category.getParentId()) {
+                if (mParentCategoryList.get(i).getId() == category.getParentCategoryId()) {
                     spParentCategory.setSelection(i + 1);
                     break;
                 }
@@ -211,59 +193,36 @@ public class CategoryManageActivity extends AppCompatActivity {
     }
 
     /**
-     * 处理删除点击
+     * 处理删除点击（简化：仅弹确认框）
      */
     private void handleDeleteClick(Category category) {
-        mPendingDeleteCategoryId = category.getId();
-        // 检查该分类下是否有物品
-        mViewModel.checkItemCountByCategoryId(category.getId()).observe(CategoryManageActivity.this, count -> {
-            if (count > 0) {
-                showAlertDialog("提示",
-                        "该分类下有" + count + "个物品，删除后将影响物品分类显示，是否确认删除？",
-                        true);
-            } else {
-                showAlertDialog("提示", "是否确认删除该分类？", true);
-            }
-        });
+        new AlertDialog.Builder(this)
+                .setTitle("删除确认")
+                .setMessage(String.format("是否确认删除分类「%s」？", category.getCategoryName()))
+                .setPositiveButton("删除", (dialog, which) -> {
+                    mViewModel.deleteCategory(category.getId());
+                    dialog.dismiss();
+                })
+                .setNegativeButton("取消", (dialog, which) -> dialog.dismiss())
+                .setCancelable(false)
+                .show();
     }
-
 
     /**
      * 通用弹窗提示
-     * @param title 弹窗标题
-     * @param message 弹窗内容
-     * @param isDelete  是否为删除确认弹窗
      */
     private void showAlertDialog(String title, String message, boolean isDelete) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this)
                 .setTitle(title)
                 .setMessage(message)
-                .setCancelable(false);
-
-        // 确定按钮
-        builder.setPositiveButton("确定", (dialog, which) -> {
-            if (isDelete) {
-                // 执行删除操作
-                mViewModel.deleteCategory(mPendingDeleteCategoryId);
-                mPendingDeleteCategoryId = 0;
-            }
-            dialog.dismiss();
-        });
-
-        // 取消按钮（仅删除弹窗显示）
+                .setCancelable(false)
+                .setPositiveButton("确定", (dialog, which) -> dialog.dismiss());
         if (isDelete) {
-            builder.setNegativeButton("取消", (dialog, which) -> {
-                mPendingDeleteCategoryId = 0;
-                dialog.dismiss();
-            });
+            builder.setNegativeButton("取消", (dialog, which) -> dialog.dismiss());
         }
-
         builder.show();
     }
 
-    /**
-     * 重置编辑状态
-     */
     private void resetEditState() {
         etCategoryName.setText("");
         spParentCategory.setSelection(0);

@@ -65,8 +65,9 @@ public interface ItemDao {
             Long expireEnd
     );
 
+
     // 直接查询Item的分类 / 位置名称
-    @Query("SELECT i.*, c1.name as parentCategoryName, c2.name as categoryName, l.name as locationName " +
+    @Query("SELECT i.*, c1.categoryName as parentCategoryName, c2.categoryName as categoryName, l.name as locationName " +
             "FROM item i " +
             // 关联父分类表（parentCategoryId对应分类ID）
             "LEFT JOIN category c1 ON i.parentCategoryId = c1.id " +
@@ -76,8 +77,8 @@ public interface ItemDao {
             "LEFT JOIN location l ON i.locationId = l.id " +
             "WHERE i.isDeleted = 0 " +
             "AND (:keyword IS NULL OR i.name LIKE '%' || :keyword || '%') " +
-            "AND (:parentCategoryName IS NULL OR c1.name = :parentCategoryName) " +
-            "AND (:childCategoryName IS NULL OR c2.name = :childCategoryName) " +
+            "AND (:parentCategoryName IS NULL OR c1.categoryName = :parentCategoryName) " +
+            "AND (:childCategoryName IS NULL OR c2.categoryName = :childCategoryName) " +
             "AND (:locationName IS NULL OR l.name = :locationName) " +
             "AND (:quantityMin IS NULL OR i.count >= :quantityMin) " +
             "AND (:quantityMax IS NULL OR i.count <= :quantityMax) " +

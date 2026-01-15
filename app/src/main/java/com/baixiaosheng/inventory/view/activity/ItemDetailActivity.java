@@ -109,12 +109,12 @@ public class ItemDetailActivity extends AppCompatActivity {
 
             // 查询父分类名称
             queryViewModel.getCategoryByIdLiveData(item.getParentCategoryId()).observe(this, category -> {
-                tvParentCategory.setText(category == null ? "无" : category.getName());
+                tvParentCategory.setText(category == null ? "无" : category.getCategoryName());
             });
 
             // 查询子分类名称
             queryViewModel.getCategoryByIdLiveData(item.getChildCategoryId()).observe(this, category -> {
-                tvChildCategory.setText(category == null ? "无" : category.getName());
+                tvChildCategory.setText(category == null ? "无" : category.getCategoryName());
             });
 
             // 查询位置名称

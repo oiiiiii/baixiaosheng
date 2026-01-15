@@ -105,13 +105,25 @@ public class LocationManageActivity extends AppCompatActivity {
         btnAddLocation.setText("更新");
     }
 
+
     /**
      * 删除位置点击事件
      */
     private void onDeleteClick(Location location) {
-        mViewModel.deleteLocation(location.getId());
+        // 弹出确认删除对话框
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("确认删除")
+                .setMessage("是否确定删除该位置？")
+                .setPositiveButton("确定", (dialog, which) -> {
+                    // 确认后执行删除
+                    mViewModel.deleteLocation(location.getId());
+                })
+                .setNegativeButton("取消", (dialog, which) -> {
+                    // 取消则关闭对话框
+                    dialog.dismiss();
+                })
+                .show();
     }
-
     /**
      * 重置编辑状态
      */

@@ -67,7 +67,7 @@ public class QueryViewModel extends AndroidViewModel {
      */
     public void reloadAllCategories() {
         executor.execute(() -> {
-            allCategoriesCache = databaseManager.getAllCategories();
+            allCategoriesCache = databaseManager.listAllCategories();
             // 全量分类更新后，主动刷新父分类列表（联动UI）
             loadParentCategoriesInternal();
         });
@@ -87,7 +87,7 @@ public class QueryViewModel extends AndroidViewModel {
 
     private void loadAllCategories() {
         executor.execute(() -> {
-            allCategoriesCache = databaseManager.getAllCategories();
+            allCategoriesCache = databaseManager.listAllCategories();
         });
     }
 
@@ -106,10 +106,10 @@ public class QueryViewModel extends AndroidViewModel {
 
     // 父分类加载核心逻辑（抽离为内部方法，避免重复代码）
     private void loadParentCategoriesInternal() {
-        List<Category> categories = databaseManager.getParentCategories(0);
+        List<Category> categories = databaseManager.listTopLevelParentCategories();
         List<String> names = new ArrayList<>();
         for (Category category : categories) {
-            names.add(category.getName());
+            names.add(category.getCategoryName());
         }
         // postValue确保线程安全，更新LiveData
         parentCategoryList.postValue(names);
@@ -122,23 +122,23 @@ public class QueryViewModel extends AndroidViewModel {
         executor.execute(() -> {
             List<Category> childCategories;
             if (parentCategory == null || parentCategory.isEmpty()) {
-                childCategories = databaseManager.getAllCategories();
+                childCategories = databaseManager.listAllCategories();
             } else {
                 long parentId = 0;
                 if (allCategoriesCache != null) {
                     for (Category category : allCategoriesCache) {
-                        if (parentCategory.equals(category.getName())) {
+                        if (parentCategory.equals(category.getCategoryName())) {
                             parentId = category.getId();
                             break;
                         }
                     }
                 }
-                childCategories = databaseManager.getChildCategoriesByParentId(parentId);
+                childCategories = databaseManager.listChildCategoriesByParentId(parentId);
             }
             List<String> names = new ArrayList<>();
             names.add("全部");
             for (Category category : childCategories) {
-                names.add(category.getName());
+                names.add(category.getCategoryName());
             }
             childCategoryList.postValue(names);
         });
@@ -209,7 +209,7 @@ public class QueryViewModel extends AndroidViewModel {
             return null;
         }
         for (Category category : allCategoriesCache) {
-            if (categoryName.equals(category.getName())) {
+            if (categoryName.equals(category.getCategoryName())) {
                 return category.getId();
             }
         }

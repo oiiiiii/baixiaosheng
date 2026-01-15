@@ -39,54 +39,126 @@ public class DatabaseManager {
         return INSTANCE;
     }
 
-
-
-    // ==================== 分类表操作 ====================
+    // ==================== 分类表操作（规范后） ====================
+    /** 添加分类 */
     public long addCategory(Category category) {
-        // 设置创建/更新时间为当前时间
         long currentTime = System.currentTimeMillis();
         category.setCreateTime(currentTime);
         category.setUpdateTime(currentTime);
         return db.categoryDao().insertCategory(category);
     }
 
+    /** 更新分类 */
     public int updateCategory(Category category) {
-        // 更新时间为当前时间
         category.setUpdateTime(System.currentTimeMillis());
         return db.categoryDao().updateCategory(category);
     }
 
+    /** 删除分类（实体类方式） */
     public int deleteCategory(Category category) {
         return db.categoryDao().deleteCategory(category);
     }
 
-    public Category getCategoryById(long id) {
-        return db.categoryDao().getCategoryById(id);
+
+    /** 根据ID查询分类 */
+    public Category getCategoryById(long categoryId) {
+        return db.categoryDao().getCategoryById(categoryId);
     }
 
-    public List<Category> getParentCategories(long parentId) {
-        return db.categoryDao().getParentCategories(parentId);
+    /** 查询所有顶级父分类 */
+    public List<Category> listTopLevelParentCategories() {
+        return db.categoryDao().listTopLevelParentCategories();
     }
 
-    public List<Category> getChildCategories(long parentId) {
-        return db.categoryDao().getChildCategories(parentId);
-    }
-    public List<Category> getChildCategoriesByParentId(long parentId) {
-        return db.categoryDao().getChildCategoriesByParentId(parentId);
+    /** 根据父分类ID查询子分类列表 */
+    public List<Category> listChildCategoriesByParentId(long parentCategoryId) {
+        return db.categoryDao().listChildCategoriesByParentId(parentCategoryId);
     }
 
-    public List<Category> getAllCategories() {
-        return db.categoryDao().getAllCategories();
+    /** 查询所有分类 */
+    public List<Category> listAllCategories() {
+        return db.categoryDao().listAllCategories();
     }
 
-    // 新增：根据名称模糊查询分类（适配DefaultDataUtils）
-    public List<Category> getCategoryByName(String name) {
-        return db.categoryDao().searchCategory(name);
+    /** 模糊搜索分类（按名称） */
+    public List<Category> searchCategoriesByKeyword(String keyword) {
+        return db.categoryDao().searchCategoriesByKeyword(keyword);
     }
 
-    // 新增：根据名称和父ID查询分类（供导入工具类使用）
-    public List<Category> getCategoryByNameAndParentId(String name, long parentId) {
-        return db.categoryDao().getCategoryByNameAndParentId(name, parentId);
+    /** 根据名称+父分类ID查询分类（导入去重） */
+    public List<Category> getCategoriesByCategoryNameAndParentId(String categoryName, long parentCategoryId) {
+        return db.categoryDao().getCategoriesByCategoryNameAndParentId(categoryName, parentCategoryId);
+    }
+
+    /** 统计父分类关联的有效物品数量 */
+    public int countItemsByParentCategoryId(long categoryId) {
+        return db.categoryDao().countItemsByParentCategoryId(categoryId);
+    }
+
+    /** 统计子分类关联的有效物品数量 */
+    public int countItemsByChildCategoryId(long categoryId) {
+        return db.categoryDao().countItemsByChildCategoryId(categoryId);
+    }
+
+    /** 查询指定父分类下的子分类数量 */
+    public int countChildCategoriesByParentId(long parentCategoryId) {
+        return db.categoryDao().countChildCategoriesByParentId(parentCategoryId);
+    }
+
+    /**
+     * 获取分类关联的物品数量
+     */
+    public int getRelatedItemCount(long categoryId) {
+        return db.categoryDao().getRelatedItemCount(categoryId);
+    }
+
+
+    // 清空子分类关联：仅清空item的childCategoryId，保留parentCategoryId（解决问题1）
+    public void clearItemCategoryByChildId(long childId) {
+        db.categoryDao().clearItemChildCategoryId(childId);
+    }
+
+    // 清空父分类关联：同时清空item的parent和childCategoryId（父分类删除专用）
+    public void clearItemCategoryByParentId(long parentId) {
+        db.categoryDao().clearItemParentCategoryId(parentId);
+    }
+
+
+    /**
+     * 根据ID删除分类
+     */
+    public int deleteCategoryById(long categoryId) {
+        return db.categoryDao().deleteCategoryById(categoryId);
+    }
+
+    /**
+     * 统计父分类下所有关联物品（父分类直接关联 + 所有子分类关联）
+     * 修复：物品计数错误问题
+     */
+    public int countAllItemsByParentCategoryId(long parentId) {
+        // 1. 父分类直接关联的物品数
+        int parentItemCount = db.categoryDao().countItemsByParentCategoryId(parentId);
+        // 2. 所有子分类关联的物品数
+        List<Category> childCategories = listChildCategoriesByParentId(parentId);
+        int childItemTotal = 0;
+        for (Category child : childCategories) {
+            childItemTotal += db.categoryDao().countItemsByChildCategoryId(child.getId());
+        }
+        // 总物品数 = 父直接关联 + 子分类关联（修复计数错误）
+        return parentItemCount + childItemTotal;
+    }
+
+    // 在DatabaseManager中添加事务封装（示例）
+    public void deleteParentCategoryWithTransaction(long parentId) {
+        db.runInTransaction(() -> {
+            clearItemCategoryByParentId(parentId);
+            List<Category> childCategories = listChildCategoriesByParentId(parentId);
+            for (Category child : childCategories) {
+                clearItemCategoryByChildId(child.getId());
+                deleteCategoryById(child.getId());
+            }
+            deleteCategoryById(parentId);
+        });
     }
 
     // ==================== 位置表操作 ====================

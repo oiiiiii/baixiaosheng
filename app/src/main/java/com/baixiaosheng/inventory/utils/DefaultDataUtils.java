@@ -26,15 +26,15 @@ public class DefaultDataUtils {
                 DatabaseManager dbManager = DatabaseManager.getInstance(context);
 
                 // 优化：用精确查询（名称+父ID）判断是否已存在默认父分类，避免模糊查询误判
-                List<Category> defaultCategories = dbManager.getCategoryByNameAndParentId("办公用品", 0);
+                List<Category> defaultCategories = dbManager.getCategoriesByCategoryNameAndParentId("办公用品", 0);
                 if (!defaultCategories.isEmpty()) {
                     return null;
                 }
 
                 // 1. 父分类：办公用品
                 Category officeParent = new Category();
-                officeParent.setParentId(0);
-                officeParent.setName("办公用品");
+                officeParent.setParentCategoryId(0);
+                officeParent.setCategoryName("办公用品");
                 officeParent.setCreateTime(System.currentTimeMillis());
                 officeParent.setUpdateTime(System.currentTimeMillis());
                 // 修复：调用正确的addCategory方法（原代码调用了不存在的insert）
@@ -42,40 +42,40 @@ public class DefaultDataUtils {
 
                 // 子分类：文具
                 Category stationery = new Category();
-                stationery.setParentId(officeParentId);
-                stationery.setName("文具");
+                stationery.setParentCategoryId(officeParentId);
+                stationery.setCategoryName("文具");
                 stationery.setCreateTime(System.currentTimeMillis());
                 stationery.setUpdateTime(System.currentTimeMillis());
                 dbManager.addCategory(stationery);
 
                 // 子分类：设备
                 Category equipment = new Category();
-                equipment.setParentId(officeParentId);
-                equipment.setName("设备");
+                equipment.setParentCategoryId(officeParentId);
+                equipment.setCategoryName("设备");
                 equipment.setCreateTime(System.currentTimeMillis());
                 equipment.setUpdateTime(System.currentTimeMillis());
                 dbManager.addCategory(equipment);
 
                 // 2. 父分类：生活用品
                 Category lifeParent = new Category();
-                lifeParent.setParentId(0);
-                lifeParent.setName("生活用品");
+                lifeParent.setParentCategoryId(0);
+                lifeParent.setCategoryName("生活用品");
                 lifeParent.setCreateTime(System.currentTimeMillis());
                 lifeParent.setUpdateTime(System.currentTimeMillis());
                 long lifeParentId = dbManager.addCategory(lifeParent);
 
                 // 子分类：洗漱用品
                 Category wash = new Category();
-                wash.setParentId(lifeParentId);
-                wash.setName("洗漱用品");
+                wash.setParentCategoryId(lifeParentId);
+                wash.setCategoryName("洗漱用品");
                 wash.setCreateTime(System.currentTimeMillis());
                 wash.setUpdateTime(System.currentTimeMillis());
                 dbManager.addCategory(wash);
 
                 // 子分类：食品
                 Category food = new Category();
-                food.setParentId(lifeParentId);
-                food.setName("食品");
+                food.setParentCategoryId(lifeParentId);
+                food.setCategoryName("食品");
                 food.setCreateTime(System.currentTimeMillis());
                 food.setUpdateTime(System.currentTimeMillis());
                 dbManager.addCategory(food);

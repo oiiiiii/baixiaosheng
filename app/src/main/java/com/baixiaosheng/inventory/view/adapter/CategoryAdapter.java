@@ -49,9 +49,9 @@ public class CategoryAdapter extends RecyclerView.Adapter<CategoryAdapter.Catego
     @Override
     public void onBindViewHolder(@NonNull CategoryViewHolder holder, int position) {
         Category category = mCategoryList.get(position);
-        holder.tvCategoryName.setText(category.getName());
+        holder.tvCategoryName.setText(category.getCategoryName());
         // 显示父分类名称（无则显示"无"）
-        holder.tvParentCategory.setText(category.getParentId() == 0 ? "无" : getParentName(category.getParentId()));
+        holder.tvParentCategory.setText(category.getParentCategoryId() == 0 ? "无" : getParentName(category.getParentCategoryId()));
         // 编辑按钮点击
         holder.btnEditCategory.setOnClickListener(v -> mOnEditClickListener.onEditClick(category));
         // 删除按钮点击
@@ -77,7 +77,7 @@ public class CategoryAdapter extends RecyclerView.Adapter<CategoryAdapter.Catego
     private String getParentName(long parentId) {
         for (Category category : mCategoryList) {
             if (category.getId() == parentId) {
-                return category.getName();
+                return category.getCategoryName();
             }
         }
         return "未知";

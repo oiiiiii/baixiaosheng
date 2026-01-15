@@ -169,8 +169,8 @@ public class InputFragment extends Fragment {
 
         // 添加数据库中的父分类（parentId=0的分类）
         for (Category category : mAllCategories) {
-            if (category.getParentId() == 0) {
-                parentCatNames.add(category.getName());
+            if (category.getParentCategoryId() == 0) {
+                parentCatNames.add(category.getCategoryName());
             }
         }
 
@@ -203,8 +203,8 @@ public class InputFragment extends Fragment {
 
         // 添加指定父分类下的子分类
         for (Category category : mAllCategories) {
-            if (category.getParentId() == parentCategoryId && parentCategoryId != 0) {
-                childCatNames.add(category.getName());
+            if (category.getParentCategoryId() == parentCategoryId && parentCategoryId != 0) {
+                childCatNames.add(category.getCategoryName());
             }
         }
 
@@ -290,11 +290,11 @@ public class InputFragment extends Fragment {
 
         // 从缓存列表中匹配
         for (Category category : mAllCategories) {
-            if (category.getName().equals(name)) {
+            if (category.getCategoryName().equals(name)) {
                 // 父分类需满足parentId=0，子分类需满足parentId=当前选中的父分类ID
-                if (isParent && category.getParentId() == 0) {
+                if (isParent && category.getParentCategoryId() == 0) {
                     return category.getId();
-                } else if (!isParent && category.getParentId() == mCurrentParentCategoryId) {
+                } else if (!isParent && category.getParentCategoryId() == mCurrentParentCategoryId) {
                     return category.getId();
                 }
             }
@@ -314,7 +314,7 @@ public class InputFragment extends Fragment {
         // 从缓存列表中匹配
         for (Category category : mAllCategories) {
             if (category.getId() == id) {
-                return category.getName();
+                return category.getCategoryName();
             }
         }
         return "未分类";

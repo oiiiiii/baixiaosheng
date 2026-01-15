@@ -56,7 +56,7 @@ public class DataExportImportUtils {
 
             LiveData<List<Item>> itemLiveData = DatabaseManager.getInstance(context).getAllItems();
             List<Item> items = itemLiveData.getValue() == null ? new ArrayList<>() : itemLiveData.getValue();
-            List<Category> categories = DatabaseManager.getInstance(context).getAllCategories();
+            List<Category> categories = DatabaseManager.getInstance(context).listAllCategories();
             List<Location> locations = DatabaseManager.getInstance(context).getAllLocations();
 
             // 2. 将数据转换为JSON
@@ -224,8 +224,8 @@ public class DataExportImportUtils {
         JSONArray jsonArray = new JSONArray();
         for (Category category : categories) {
             JSONObject json = new JSONObject();
-            json.put("parentId", category.getParentId());
-            json.put("name", category.getName());
+            json.put("parentId", category.getParentCategoryId());
+            json.put("name", category.getCategoryName());
             jsonArray.put(json);
         }
         return jsonArray;
@@ -254,14 +254,14 @@ public class DataExportImportUtils {
         for (int i = 0; i < jsonArray.length(); i++) {
             JSONObject json = jsonArray.getJSONObject(i);
             Category category = new Category();
-            category.setParentId(json.getLong("parentId"));
-            category.setName(json.getString("name"));
+            category.setParentCategoryId(json.getLong("parentId"));
+            category.setCategoryName(json.getString("name"));
             category.setCreateTime(System.currentTimeMillis());
             category.setUpdateTime(System.currentTimeMillis());
 
             // 避免重复插入
-            List<Category> exist = dbManager.getCategoryByNameAndParentId(
-                    category.getName(), category.getParentId());
+            List<Category> exist = dbManager.getCategoriesByCategoryNameAndParentId(
+                    category.getCategoryName(), category.getParentCategoryId());
             if (exist.isEmpty()) {
                 dbManager.addCategory(category);
                 count++;

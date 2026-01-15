@@ -1,14 +1,14 @@
 package com.baixiaosheng.inventory.database.entity;
 
 import androidx.room.Entity;
-import androidx.room.PrimaryKey;
 import androidx.room.Ignore;
+import androidx.room.PrimaryKey;
 
 /**
  * 分类表（支持父子分类级联）
  * id：主键自增
- * parentId：父分类ID（0表示一级分类）
- * name：分类名称
+ * parentCategoryId：父分类ID（0表示一级分类）
+ * categoryName：分类名称
  * createTime：创建时间（时间戳）
  * updateTime：更新时间（时间戳）
  */
@@ -17,10 +17,10 @@ public class Category {
     // 主键自增
     @PrimaryKey(autoGenerate = true)
     private long id;
-    // 父分类ID，0代表一级分类
-    private long parentId;
-    // 分类名称
-    private String name;
+    // 父分类ID，0代表一级分类（规范字段名：parentCategoryId）
+    private long parentCategoryId;
+    // 分类名称（规范字段名：categoryName）
+    private String categoryName;
     // 创建时间（毫秒级时间戳）
     private long createTime;
     // 更新时间（毫秒级时间戳）
@@ -31,14 +31,14 @@ public class Category {
 
     // 带参构造函数（方便创建）
     @Ignore
-    public Category(long parentId, String name, long createTime, long updateTime) {
-        this.parentId = parentId;
-        this.name = name;
+    public Category(long parentCategoryId, String categoryName, long createTime, long updateTime) {
+        this.parentCategoryId = parentCategoryId;
+        this.categoryName = categoryName;
         this.createTime = createTime;
         this.updateTime = updateTime;
     }
 
-    // Getter & Setter （Room需要访问字段）
+    // Getter & Setter （规范命名）
     public long getId() {
         return id;
     }
@@ -47,20 +47,20 @@ public class Category {
         this.id = id;
     }
 
-    public long getParentId() {
-        return parentId;
+    public long getParentCategoryId() {
+        return parentCategoryId;
     }
 
-    public void setParentId(long parentId) {
-        this.parentId = parentId;
+    public void setParentCategoryId(long parentCategoryId) {
+        this.parentCategoryId = parentCategoryId;
     }
 
-    public String getName() {
-        return name;
+    public String getCategoryName() {
+        return categoryName;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setCategoryName(String categoryName) {
+        this.categoryName = categoryName;
     }
 
     public long getCreateTime() {
