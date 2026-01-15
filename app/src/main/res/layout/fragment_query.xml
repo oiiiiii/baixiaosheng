@@ -51,7 +51,7 @@
                     android:id="@+id/iv_filter_arrow"
                     android:layout_width="24dp"
                     android:layout_height="24dp"
-                    android:src="@drawable/ic_baseline_arrow_drop_down_24" />
+                    android:src="@drawable/ic_filter_arrow" />
             </LinearLayout>
 
             <!-- 筛选内容区（默认展开） -->
