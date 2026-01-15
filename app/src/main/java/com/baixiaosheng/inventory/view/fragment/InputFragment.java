@@ -756,6 +756,17 @@ public class InputFragment extends Fragment {
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+        // 页面恢复可见时，主动刷新分类和位置数据
+        if (mCategoryViewModel != null) {
+            mCategoryViewModel.loadAllCategories(); // 触发分类数据刷新
+        }
+        if (mLocationViewModel != null) {
+            mLocationViewModel.loadAllLocations(); // 触发位置数据刷新
+        }
+    }
+    @Override
     public void onDestroyView() {
         super.onDestroyView();
         for (int i = 0; i < llImagePreview.getChildCount(); i++) {

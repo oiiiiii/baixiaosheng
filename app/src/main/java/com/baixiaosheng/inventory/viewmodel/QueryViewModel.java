@@ -34,6 +34,7 @@ public class QueryViewModel extends AndroidViewModel {
     private final MutableLiveData<List<String>> locationList = new MutableLiveData<>();
     private final MutableLiveData<Item> currentItemLiveData = new MutableLiveData<>();
 
+
     // 筛选条件
     private final FilterCondition currentFilter = new FilterCondition();
     // 缓存全量分类和位置数据
@@ -43,14 +44,46 @@ public class QueryViewModel extends AndroidViewModel {
     public QueryViewModel(@NonNull Application application) {
         super(application);
         databaseManager = DatabaseManager.getInstance(application);
+        // 初始化时仅调用一次，移除重复调用
+        initData();
+    }
+
+    // 初始化数据：统一管理首次加载逻辑，避免重复
+    private void initData() {
+        // 先加载全量缓存，再加载UI展示的分类/位置
         loadAllCategories();
         loadAllLocations();
         loadParentCategories();
         loadLocations();
         queryItems(currentFilter);
+
     }
 
     // ==================== 数据加载方法 ====================
+
+    /**
+     * 重新加载全量分类（每次刷新时调用，更新缓存）
+     * 供外部onResume()触发刷新
+     */
+    public void reloadAllCategories() {
+        executor.execute(() -> {
+            allCategoriesCache = databaseManager.getAllCategories();
+            // 全量分类更新后，主动刷新父分类列表（联动UI）
+            loadParentCategoriesInternal();
+        });
+    }
+
+    /**
+     * 重新加载全量位置（每次刷新时调用，更新缓存）
+     * 供外部onResume()触发刷新
+     */
+    public void reloadAllLocations() {
+        executor.execute(() -> {
+            allLocationsCache = databaseManager.getAllLocations();
+            // 全量位置更新后，主动刷新位置列表（联动UI）
+            loadLocationsInternal();
+        });
+    }
 
     private void loadAllCategories() {
         executor.execute(() -> {
@@ -63,27 +96,34 @@ public class QueryViewModel extends AndroidViewModel {
             allLocationsCache = databaseManager.getAllLocations();
         });
     }
-
-    private void loadParentCategories() {
-        executor.execute(() -> {
-            List<Category> categories = databaseManager.getParentCategories(0);
-            List<String> names = new ArrayList<>();
-            for (Category category : categories) {
-                names.add(category.getName());
-            }
-            parentCategoryList.postValue(names);
-        });
+    /**
+     * 对外暴露：加载父分类（供Fragment onResume调用）
+     * 触发重新查询数据库并更新LiveData
+     */
+    public void loadParentCategories() {
+        executor.execute(this::loadParentCategoriesInternal);
     }
 
+    // 父分类加载核心逻辑（抽离为内部方法，避免重复代码）
+    private void loadParentCategoriesInternal() {
+        List<Category> categories = databaseManager.getParentCategories(0);
+        List<String> names = new ArrayList<>();
+        for (Category category : categories) {
+            names.add(category.getName());
+        }
+        // postValue确保线程安全，更新LiveData
+        parentCategoryList.postValue(names);
+    }
 
+    /**
+     * 对外暴露：加载子分类（供Fragment 父分类选择时调用）
+     */
     public void loadChildCategories(String parentCategory) {
         executor.execute(() -> {
             List<Category> childCategories;
-            // 接收空字符串/null 时，加载所有子分类
             if (parentCategory == null || parentCategory.isEmpty()) {
-                childCategories = databaseManager.getAllCategories(); // 加载所有子分类（需确认数据库方法）
+                childCategories = databaseManager.getAllCategories();
             } else {
-                // 原有逻辑：根据父分类名称查 parentId，再加载对应子分类
                 long parentId = 0;
                 if (allCategoriesCache != null) {
                     for (Category category : allCategoriesCache) {
@@ -95,7 +135,6 @@ public class QueryViewModel extends AndroidViewModel {
                 }
                 childCategories = databaseManager.getChildCategoriesByParentId(parentId);
             }
-            // 拼接「全部」并返回
             List<String> names = new ArrayList<>();
             names.add("全部");
             for (Category category : childCategories) {
@@ -105,15 +144,34 @@ public class QueryViewModel extends AndroidViewModel {
         });
     }
 
-    private void loadLocations() {
-        executor.execute(() -> {
-            List<Location> locations = databaseManager.getAllLocations();
-            List<String> names = new ArrayList<>();
-            for (Location location : locations) {
-                names.add(location.getName());
-            }
-            locationList.postValue(names);
-        });
+    /**
+     * 对外暴露：加载位置（供Fragment onResume调用）
+     * 触发重新查询数据库并更新LiveData
+     */
+    public void loadLocations() {
+        executor.execute(this::loadLocationsInternal);
+    }
+
+    // 位置加载核心逻辑（抽离为内部方法）
+    private void loadLocationsInternal() {
+        List<Location> locations = databaseManager.getAllLocations();
+        List<String> names = new ArrayList<>();
+        for (Location location : locations) {
+            names.add(location.getName());
+        }
+        locationList.postValue(names);
+    }
+
+    @Override
+    protected void onCleared() {
+        super.onCleared();
+        executor.shutdown();
+    }
+
+    // 新增：对外暴露刷新全量分类/位置的方法（供Fragment onResume调用）
+    public void refreshAllCategoryAndLocation() {
+        reloadAllCategories();
+        reloadAllLocations();
     }
 
     // ==================== 查询方法 ====================
@@ -142,10 +200,7 @@ public class QueryViewModel extends AndroidViewModel {
             result.removeObserver(items1 -> itemList.postValue(items1));
         });
     }
-    // 修改返回类型
-    public LiveData<List<ItemWithName>> getItemList() {
-        return itemList;
-    }
+
 
     // ==================== 名称转ID辅助方法 ====================
 
@@ -213,7 +268,25 @@ public class QueryViewModel extends AndroidViewModel {
         queryItems(currentFilter);
     }
 
+
+
     // ==================== LiveData Getter ====================
+
+    // 修改返回类型
+    public LiveData<List<ItemWithName>> getItemList() {
+        return itemList;
+    }
+    public LiveData<List<String>> getParentCategoryList() {
+        return parentCategoryList;
+    }
+
+    public LiveData<List<String>> getChildCategoryList() {
+        return childCategoryList;
+    }
+
+    public LiveData<List<String>> getLocationList() {
+        return locationList;
+    }
 
     // 替换原错误的 getItemByIdLiveData 方法
     public LiveData<Item> getItemByIdLiveData(long itemId) {
@@ -250,19 +323,12 @@ public class QueryViewModel extends AndroidViewModel {
         return locationLiveData;
     }
 
-    public LiveData<List<String>> getParentCategoryList() {
-        return parentCategoryList;
-    }
-
-    public LiveData<List<String>> getChildCategoryList() {
-        return childCategoryList;
-    }
-
-    public LiveData<List<String>> getLocationList() {
-        return locationList;
-    }
 
     // ==================== 回调接口方法 ====================
+
+    public interface OnItemLoadedListener {
+        void onItemLoaded(Item item);
+    }
 
 
     public void getItemById(long itemId, OnItemLoadedListener listener) {
@@ -271,8 +337,9 @@ public class QueryViewModel extends AndroidViewModel {
             listener.onItemLoaded(item);
         });
     }
-    public interface OnItemLoadedListener {
-        void onItemLoaded(Item item);
+
+    public interface OnCategoryLoadedListener {
+        void onCategoryLoaded(Category category);
     }
 
     public void getCategoryById(long categoryId, OnCategoryLoadedListener listener) {
@@ -282,8 +349,9 @@ public class QueryViewModel extends AndroidViewModel {
         });
     }
 
-    public interface OnCategoryLoadedListener {
-        void onCategoryLoaded(Category category);
+
+    public interface OnLocationLoadedListener {
+        void onLocationLoaded(Location location);
     }
 
     public void getLocationById(long locationId, OnLocationLoadedListener listener) {
@@ -293,9 +361,7 @@ public class QueryViewModel extends AndroidViewModel {
         });
     }
 
-    public interface OnLocationLoadedListener {
-        void onLocationLoaded(Location location);
-    }
+
 
     public void markItemAsDeleted(long itemId) {
         executor.execute(() -> {
@@ -314,9 +380,4 @@ public class QueryViewModel extends AndroidViewModel {
         });
     }
 
-    @Override
-    protected void onCleared() {
-        super.onCleared();
-        executor.shutdown();
-    }
 }

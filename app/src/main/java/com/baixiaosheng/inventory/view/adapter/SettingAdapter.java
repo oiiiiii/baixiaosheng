@@ -18,18 +18,26 @@ import java.util.List;
  */
 public class SettingAdapter extends RecyclerView.Adapter<SettingAdapter.SettingViewHolder> {
 
-    private final List<SettingEntry> mEntryList;
-    private final OnItemClickListener mOnItemClickListener;
+    private List<SettingEntry> mEntryList;
+    private OnItemClickListener mOnItemClickListener;
 
     // 点击事件回调
+
+    public SettingAdapter(List<SettingEntry> entryList, OnItemClickListener listener) {
+        this.mEntryList = entryList;
+        this.mOnItemClickListener = listener;
+    }
+
+    // 新增：设置点击回调的方法（支持置空）
+    public void setOnItemClickListener(OnItemClickListener listener) {
+        this.mOnItemClickListener = listener;
+    }
+
+    // 原有点击回调接口（保持不变）
     public interface OnItemClickListener {
         void onItemClick(SettingEntry entry);
     }
 
-    public SettingAdapter(List<SettingEntry> entryList, OnItemClickListener onItemClickListener) {
-        this.mEntryList = entryList;
-        this.mOnItemClickListener = onItemClickListener;
-    }
 
     @NonNull
     @Override

@@ -57,12 +57,28 @@ public class QueryFragment extends Fragment {
     // 筛选条件
     private final FilterCondition filterCondition = new FilterCondition();
 
+
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (queryViewModel != null) {
+            // 第一步：刷新全量分类/位置缓存（确保和数据库最新数据同步）
+            queryViewModel.refreshAllCategoryAndLocation();
+            // 第二步：刷新UI展示的父分类和位置Spinner
+            queryViewModel.loadParentCategories();
+            queryViewModel.loadLocations();
+            // 第三步：刷新物品列表（基于最新筛选条件）
+            refreshItemList();
+        }
+    }
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_query, container, false);
         initView(view);
-        queryViewModel = new ViewModelProvider(this).get(QueryViewModel.class);
+        queryViewModel = new ViewModelProvider(requireActivity()).get(QueryViewModel.class);
         initAdapter();
         bindViewModel();
         bindEvents();

@@ -30,6 +30,30 @@ public class SettingFragment extends Fragment {
     private RecyclerView rvSettingList;
     private SettingAdapter settingAdapter;
     private List<SettingEntry> entryList;
+    // SettingFragment.java 完整的 onDestroyView 实现
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        // 释放 RecyclerView 和 Adapter 资源，移除视图引用
+        if (rvSettingList != null) {
+            rvSettingList.setAdapter(null); // 解除 SettingAdapter 绑定
+            rvSettingList.removeAllViews(); // 移除所有子视图
+            rvSettingList = null;
+        }
+        if (settingAdapter != null) {
+            settingAdapter.setOnItemClickListener(null); // 现在方法已定义，可正常调用
+            settingAdapter = null;
+        }
+        entryList = null;
+    }
+    @Override
+    public void setUserVisibleHint(boolean isVisibleToUser) {
+        super.setUserVisibleHint(isVisibleToUser);
+        if (getView() != null) {
+            // 非当前页时直接隐藏根视图，避免透显
+            getView().setVisibility(isVisibleToUser ? View.VISIBLE : View.GONE);
+        }
+    }
 
     @Nullable
     @Override
