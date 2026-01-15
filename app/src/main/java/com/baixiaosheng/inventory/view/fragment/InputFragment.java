@@ -22,10 +22,14 @@ import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import com.baixiaosheng.inventory.R;
+import com.baixiaosheng.inventory.database.entity.Category;
 import com.baixiaosheng.inventory.database.entity.Item;
+import com.baixiaosheng.inventory.database.entity.Location;
 import com.baixiaosheng.inventory.utils.ImageUtils;
 import com.baixiaosheng.inventory.utils.PermissionUtils;
+import com.baixiaosheng.inventory.viewmodel.CategoryManageViewModel;
 import com.baixiaosheng.inventory.viewmodel.InputViewModel;
+import com.baixiaosheng.inventory.viewmodel.LocationManageViewModel;
 import java.io.File;
 import java.io.IOException;
 import java.text.ParseException;
@@ -38,35 +42,46 @@ import java.util.Locale;
 import java.util.UUID;
 
 /**
- * 录入页Fragment（支持编辑模式 + 修复所有闪退问题：类型转换、空指针、资源缺失、权限适配）
+ * 录入页Fragment（支持编辑模式 + 动态加载分类/位置数据 + 父分类联动子分类）
  */
 public class InputFragment extends Fragment {
     // 请求码
     private static final int REQUEST_TAKE_PHOTO = 101;
     private static final int REQUEST_CHOOSE_PHOTO = 102;
     private static final int PERMISSION_REQUEST_CODE = 103;
-    private static final int PERMISSION_REQUEST_STORAGE = 104; // 单独的存储权限请求码
-    private static final int PERMISSION_REQUEST_WRITE_STORAGE = 105; // 写入存储权限请求码
+    private static final int PERMISSION_REQUEST_STORAGE = 104;
+    private static final int PERMISSION_REQUEST_WRITE_STORAGE = 105;
 
-    // 视图控件（修复类型转换错误）
+    // 视图控件
     private EditText etName, etExpireDate, etQuantity, etDescription;
     private Spinner spParentCategory, spChildCategory, spLocation;
     private LinearLayout llImagePreview;
-    private ImageView ivAddImage; // 修正为ImageView，匹配XML中的ivAddImage
+    private ImageView ivAddImage;
     private Button btnSave;
 
     // 图片相关
     private File mPhotoFile;
     private final List<String> mImagePaths = new ArrayList<>();
+
+    // ViewModel
     private InputViewModel mInputViewModel;
+    private CategoryManageViewModel mCategoryViewModel;
+    private LocationManageViewModel mLocationViewModel;
+
+    // 缓存数据
+    private List<Category> mAllCategories = new ArrayList<>();
+    private List<Location> mAllLocations = new ArrayList<>();
+    private long mCurrentParentCategoryId = 0; // 当前选中的父分类ID
 
     // 日期格式化
     private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.CHINA);
 
-    // 新增：编辑模式相关变量
-    private boolean isEditMode = false; // 是否为编辑模式
-    private Item mEditItem; // 编辑的物品对象
-    // 新增：标记当前权限请求对应的操作（拍照/选图）
+    // 编辑模式相关
+    private boolean isEditMode = false;
+    private Item mEditItem;
+    private boolean isFormFilled = false; // 标记表单是否已回填（避免重复回填）
+
+    // 权限操作标记
     private String mPermissionAction;
 
     @Nullable
@@ -74,172 +89,37 @@ public class InputFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_input, container, false);
         initView(view);
-        initAddImageButton(); // 新增：初始化添加图片按钮
+        initAddImageButton();
         initViewModel();
+        observeViewModelData(); // 新增：观察分类/位置数据
         initListener();
-        initSpinnerData();
         receiveEditParams();
         return view;
     }
-    /**
-     * 新增：动态创建添加图片按钮（缩小尺寸，嵌入预览容器）
-     */
-    private void initAddImageButton() {
-        // 创建添加图片按钮
-        ivAddImage = new ImageView(requireContext());
-        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
-                dp2px(70), dp2px(70)); // 缩小按钮尺寸（原100dp→70dp）
-        btnParams.setMargins(dp2px(4), dp2px(0), dp2px(4), dp2px(0)); // 仅横向间距
-        ivAddImage.setLayoutParams(btnParams);
-        ivAddImage.setBackgroundResource(R.color.darker_gray);
-        ivAddImage.setPadding(dp2px(15), dp2px(15), dp2px(15), dp2px(15)); // 缩小内边距
-        ivAddImage.setImageResource(R.drawable.ic_menu_camera);
-        ivAddImage.setScaleType(ImageView.ScaleType.CENTER);
-
-        // 添加点击事件
-        ivAddImage.setOnClickListener(v -> showImageChooseDialog());
-
-        // 将按钮添加到预览容器首位
-        llImagePreview.addView(ivAddImage);
-    }
 
     /**
-     * 新增：接收编辑参数（从QueryFragment传递的物品对象）
-     */
-    private void receiveEditParams() {
-        Bundle args = getArguments();
-        if (args != null && args.containsKey("edit_item")) {
-            isEditMode = true;
-            mEditItem = (Item) args.getSerializable("edit_item");
-            // 回填数据到表单
-            fillFormData();
-            // 修改保存按钮文字
-            btnSave.setText("保存修改");
-        }
-    }
-
-    /**
-     * 新增：表单数据回填（编辑模式下）
-     */
-    private void fillFormData() {
-        if (mEditItem == null) return;
-
-        // 1. 基础字段回填
-        etName.setText(mEditItem.getName());
-        etQuantity.setText(String.valueOf(mEditItem.getCount()));
-        etDescription.setText(mEditItem.getRemark());
-
-        // 2. 有效期回填
-        if (mEditItem.getValidTime() > 0) {
-            etExpireDate.setText(sdf.format(new Date(mEditItem.getValidTime())));
-        }
-
-        // 3. 分类、位置Spinner回填（根据ID匹配选项）
-        // 父分类回填
-        fillSpinnerByValue(spParentCategory, getCategoryNameById(mEditItem.getParentCategoryId()));
-        // 子分类回填
-        fillSpinnerByValue(spChildCategory, getCategoryNameById(mEditItem.getChildCategoryId()));
-        // 位置回填
-        fillSpinnerByValue(spLocation, getLocationNameById(mEditItem.getLocationId()));
-
-        // 4. 图片预览区回填
-        if (mEditItem.getImagePaths() != null && !mEditItem.getImagePaths().isEmpty()) {
-            mImagePaths.clear();
-            // 保留添加按钮，仅清空其他预览项
-            int childCount = llImagePreview.getChildCount();
-            for (int i = childCount - 1; i > 0; i--) {
-                llImagePreview.removeViewAt(i);
-            }
-
-            String[] paths = mEditItem.getImagePaths().split(",");
-            for (String path : paths) {
-                if (!path.isEmpty()) {
-                    mImagePaths.add(path);
-                    previewImage(path);
-                }
-            }
-        }
-    }
-
-    /**
-     * 辅助方法：根据分类/位置ID获取名称（适配Spinner回填）
-     */
-    private String getCategoryNameById(long id) {
-        switch ((int) id) {
-            case 1: return "食品";
-            case 2: return "日用品";
-            case 3: return "电子产品";
-            default: return "未分类"; // 父分类默认 / 子分类默认"无"
-        }
-    }
-
-    /**
-     * 辅助方法：根据位置ID获取名称
-     */
-    private String getLocationNameById(long id) {
-        switch ((int) id) {
-            case 1: return "客厅";
-            case 2: return "卧室";
-            case 3: return "厨房";
-            default: return "未指定";
-        }
-    }
-
-    /**
-     * 辅助方法：根据值设置Spinner选中项
-     */
-    private void fillSpinnerByValue(Spinner spinner, String value) {
-        ArrayAdapter<String> adapter = (ArrayAdapter<String>) spinner.getAdapter();
-        for (int i = 0; i < adapter.getCount(); i++) {
-            if (adapter.getItem(i).equals(value)) {
-                spinner.setSelection(i);
-                break;
-            }
-        }
-    }
-
-    /**
-     * 初始化视图控件（修复所有ID引用和类型转换问题）
-     */
-    private void initView(View view) {
-        // 基础表单控件
-        etName = view.findViewById(R.id.et_name);
-        etExpireDate = view.findViewById(R.id.et_expire_date);
-        etQuantity = view.findViewById(R.id.et_quantity);
-        etDescription = view.findViewById(R.id.et_description);
-
-        // Spinner控件
-        spParentCategory = view.findViewById(R.id.sp_parent_category);
-        spChildCategory = view.findViewById(R.id.sp_child_category);
-        spLocation = view.findViewById(R.id.sp_location);
-
-        // 图片相关控件（核心修复：ivAddImage改为ImageView）
-        llImagePreview = view.findViewById(R.id.ll_image_preview); // 统一使用ll_image_preview
-
-        // 保存按钮
-        btnSave = view.findViewById(R.id.btn_save);
-    }
-
-
-    /**
-     * 初始化ViewModel
+     * 初始化ViewModel（添加分类/位置ViewModel依赖）
      */
     private void initViewModel() {
+        // 物品录入ViewModel
         mInputViewModel = new ViewModelProvider(this).get(InputViewModel.class);
-        // 观察保存结果
+
+        // 分类管理ViewModel
+        mCategoryViewModel = new ViewModelProvider(requireActivity()).get(CategoryManageViewModel.class);
+
+        // 位置管理ViewModel
+        mLocationViewModel = new ViewModelProvider(requireActivity()).get(LocationManageViewModel.class);
+
+        // 观察物品保存结果
         mInputViewModel.getSaveSuccess().observe(getViewLifecycleOwner(), success -> {
             if (success) {
                 Toast.makeText(getContext(), isEditMode ? "修改保存成功" : "保存成功", Toast.LENGTH_SHORT).show();
-
                 if (isEditMode) {
-                    // 编辑模式：关闭InputActivity，返回ItemDetailActivity
-                    requireActivity().setResult(Activity.RESULT_OK); // 标记成功
-                    requireActivity().finish(); // 核心修改：关闭当前Activity
+                    requireActivity().setResult(Activity.RESULT_OK);
+                    requireActivity().finish();
                 } else {
-                    // 新增模式：清空表单继续新增
                     clearForm();
                 }
-
             } else {
                 Toast.makeText(getContext(), "保存失败，请重试", Toast.LENGTH_SHORT).show();
             }
@@ -247,153 +127,237 @@ public class InputFragment extends Fragment {
     }
 
     /**
-     * 初始化Spinner默认数据（解决空指针问题）
+     * 观察ViewModel数据（分类/位置），动态初始化Spinner
      */
-    private void initSpinnerData() {
-        // 父分类默认数据
-        List<String> parentCats = new ArrayList<>();
-        parentCats.add("未分类");
-        parentCats.add("食品");
-        parentCats.add("日用品");
-        parentCats.add("电子产品");
-        ArrayAdapter<String> parentAdapter = new ArrayAdapter<>(requireContext(),
-                android.R.layout.simple_spinner_item, parentCats);
-        parentAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spParentCategory.setAdapter(parentAdapter);
+    private void observeViewModelData() {
+        // 观察分类列表
+        mCategoryViewModel.getCategoryList().observe(getViewLifecycleOwner(), categories -> {
+            if (categories != null) {
+                mAllCategories = new ArrayList<>(categories);
+                // 初始化父分类Spinner
+                initParentCategorySpinner();
 
-        // 子分类默认数据
-        List<String> childCats = new ArrayList<>();
-        childCats.add("无");
-        childCats.add("食品");
-        childCats.add("日用品");
-        childCats.add("电子产品");
-        ArrayAdapter<String> childAdapter = new ArrayAdapter<>(requireContext(),
-                android.R.layout.simple_spinner_item, childCats);
-        childAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spChildCategory.setAdapter(childAdapter);
+                // 如果是编辑模式且数据已加载完成，回填表单
+                if (isEditMode && !isFormFilled) {
+                    fillFormData();
+                }
+            }
+        });
 
-        // 位置默认数据
-        List<String> locations = new ArrayList<>();
-        locations.add("未指定");
-        locations.add("客厅");
-        locations.add("卧室");
-        locations.add("厨房");
-        ArrayAdapter<String> locationAdapter = new ArrayAdapter<>(requireContext(),
-                android.R.layout.simple_spinner_item, locations);
-        locationAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spLocation.setAdapter(locationAdapter);
+        // 观察位置列表
+        mLocationViewModel.getLocationList().observe(getViewLifecycleOwner(), locations -> {
+            if (locations != null) {
+                mAllLocations = new ArrayList<>(locations);
+                // 初始化位置Spinner
+                initLocationSpinner();
+
+                // 如果是编辑模式且数据已加载完成，回填表单
+                if (isEditMode && !isFormFilled) {
+                    fillFormData();
+                }
+            }
+        });
     }
 
     /**
-     * 初始化事件监听（修复所有空指针和权限问题）
+     * 初始化父分类Spinner（动态加载 + 保留默认值）
+     */
+    private void initParentCategorySpinner() {
+        List<String> parentCatNames = new ArrayList<>();
+        // 添加默认选项
+        parentCatNames.add("未分类");
+
+        // 添加数据库中的父分类（parentId=0的分类）
+        for (Category category : mAllCategories) {
+            if (category.getParentId() == 0) {
+                parentCatNames.add(category.getName());
+            }
+        }
+
+        ArrayAdapter<String> parentAdapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_item, parentCatNames);
+        parentAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spParentCategory.setAdapter(parentAdapter);
+
+        // 如果是编辑模式，先暂存父分类ID，等待数据加载完成后选中
+        if (isEditMode && mEditItem != null) {
+            for (int i = 0; i < parentCatNames.size(); i++) {
+                if (parentCatNames.get(i).equals(getCategoryNameById(mEditItem.getParentCategoryId()))) {
+                    spParentCategory.setSelection(i);
+                    mCurrentParentCategoryId = mEditItem.getParentCategoryId();
+                    // 联动加载子分类
+                    initChildCategorySpinner(mCurrentParentCategoryId);
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * 初始化子分类Spinner（根据父分类ID动态加载 + 保留默认值）
+     */
+    private void initChildCategorySpinner(long parentCategoryId) {
+        List<String> childCatNames = new ArrayList<>();
+        // 添加默认选项
+        childCatNames.add("无");
+
+        // 添加指定父分类下的子分类
+        for (Category category : mAllCategories) {
+            if (category.getParentId() == parentCategoryId && parentCategoryId != 0) {
+                childCatNames.add(category.getName());
+            }
+        }
+
+        ArrayAdapter<String> childAdapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_item, childCatNames);
+        childAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spChildCategory.setAdapter(childAdapter);
+
+        // 编辑模式下回填子分类
+        if (isEditMode && mEditItem != null && !isFormFilled) {
+            fillSpinnerByValue(spChildCategory, getCategoryNameById(mEditItem.getChildCategoryId()));
+        }
+    }
+
+    /**
+     * 初始化位置Spinner（动态加载 + 保留默认值）
+     */
+    private void initLocationSpinner() {
+        List<String> locationNames = new ArrayList<>();
+        // 添加默认选项
+        locationNames.add("未指定");
+
+        // 添加数据库中的位置
+        for (Location location : mAllLocations) {
+            locationNames.add(location.getName());
+        }
+
+        ArrayAdapter<String> locationAdapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_item, locationNames);
+        locationAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spLocation.setAdapter(locationAdapter);
+
+        // 编辑模式下回填位置
+        if (isEditMode && mEditItem != null && !isFormFilled) {
+            fillSpinnerByValue(spLocation, getLocationNameById(mEditItem.getLocationId()));
+        }
+    }
+
+    /**
+     * 初始化事件监听（添加父分类选择联动监听）
      */
     private void initListener() {
         // 有效期选择
         etExpireDate.setOnClickListener(v -> showDatePicker());
 
-        // 添加图片（拍照/选图）
+        // 添加图片
         ivAddImage.setOnClickListener(v -> showImageChooseDialog());
 
         // 保存按钮
         btnSave.setOnClickListener(v -> validateAndSave());
-    }
 
-    /**
-     * 显示日期选择器
-     */
-    private void showDatePicker() {
-        Calendar calendar = Calendar.getInstance();
-        DatePickerDialog dialog = new DatePickerDialog(requireContext(),
-                (view, year, month, dayOfMonth) -> {
-                    String date = String.format(Locale.CHINA, "%d-%02d-%02d",
-                            year, month + 1, dayOfMonth);
-                    etExpireDate.setText(date);
-                },
-                calendar.get(Calendar.YEAR),
-                calendar.get(Calendar.MONTH),
-                calendar.get(Calendar.DAY_OF_MONTH));
-        dialog.show();
-    }
-
-    /**
-     * 显示图片选择弹窗（拍照/从相册选择）
-     */
-    private void showImageChooseDialog() {
-        String[] options = {"拍照", "从相册选择"};
-        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
-        builder.setTitle("选择图片来源")
-                .setItems(options, (dialog, which) -> {
-                    if (which == 0) {
-                        takePhoto(); // 拍照
-                    } else {
-                        choosePhoto(); // 选图
-                    }
-                })
-                .show();
-    }
-
-    /**
-     * 拍照逻辑（修复FileProvider和权限适配）
-     */
-    private void takePhoto() {
-        // 检查相机权限
-        if (!PermissionUtils.hasCameraPermission(requireContext())) {
-            mPermissionAction = "take_photo"; // 标记当前是拍照操作
-            PermissionUtils.requestCameraPermission(this, PERMISSION_REQUEST_CODE);
-            return;
-        }
-
-        try {
-            // 创建图片文件（使用应用私有目录，无需外部存储权限）
-            mPhotoFile = ImageUtils.createImageFile(requireContext());
-            Uri photoUri = FileProvider.getUriForFile(requireContext(),
-                    "com.baixiaosheng.inventory.fileprovider", // 需与AndroidManifest中一致
-                    mPhotoFile);
-
-            // 启动相机
-            Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-            intent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
-            if (intent.resolveActivity(requireContext().getPackageManager()) != null) {
-                startActivityForResult(intent, REQUEST_TAKE_PHOTO);
-            } else {
-                Toast.makeText(getContext(), "未找到相机应用", Toast.LENGTH_SHORT).show();
+        // 父分类选择监听（核心：联动子分类）
+        spParentCategory.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                // 获取选中的父分类名称
+                String selectedName = parent.getItemAtPosition(position).toString();
+                // 转换为分类ID
+                mCurrentParentCategoryId = getCategoryIdByName(selectedName, true);
+                // 联动刷新子分类
+                initChildCategorySpinner(mCurrentParentCategoryId);
             }
-        } catch (IOException e) {
-            Log.e("InputFragment", "创建拍照文件失败：" + e.getMessage());
-            Toast.makeText(getContext(), "创建图片文件失败", Toast.LENGTH_SHORT).show();
-        } catch (Exception e) {
-            Log.e("InputFragment", "拍照异常：" + e.getMessage());
-            Toast.makeText(getContext(), "拍照失败，请重试", Toast.LENGTH_SHORT).show();
-        }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                mCurrentParentCategoryId = 0;
+                initChildCategorySpinner(0);
+            }
+        });
     }
 
     /**
-     * 从相册选择图片（修复Android 10+路径适配 + 权限申请逻辑）
+     * 重构：根据分类名称和是否为父分类获取ID（适配动态数据）
+     * @param name 分类名称
+     * @param isParent 是否为父分类
+     * @return 分类ID
      */
-
-    // 优化choosePhoto方法，增加写入权限检查（Android 9及以下）
-    private void choosePhoto() {
-        // 检查读取存储权限
-        if (!PermissionUtils.hasStoragePermission(requireContext())) {
-            mPermissionAction = "choose_photo";
-            PermissionUtils.requestStoragePermission(this, PERMISSION_REQUEST_STORAGE);
-            return;
+    private long getCategoryIdByName(String name, boolean isParent) {
+        // 默认值处理
+        if ("未分类".equals(name) || "无".equals(name)) {
+            return 0;
         }
 
-        // 检查写入存储权限（仅Android 9及以下）
-        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P && !PermissionUtils.hasWriteStoragePermission(requireContext())) {
-            mPermissionAction = "choose_photo";
-            PermissionUtils.requestWriteStoragePermission(this, PERMISSION_REQUEST_WRITE_STORAGE);
-            return;
+        // 从缓存列表中匹配
+        for (Category category : mAllCategories) {
+            if (category.getName().equals(name)) {
+                // 父分类需满足parentId=0，子分类需满足parentId=当前选中的父分类ID
+                if (isParent && category.getParentId() == 0) {
+                    return category.getId();
+                } else if (!isParent && category.getParentId() == mCurrentParentCategoryId) {
+                    return category.getId();
+                }
+            }
         }
-
-        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-        intent.setType("image/*");
-        startActivityForResult(Intent.createChooser(intent, "选择图片"), REQUEST_CHOOSE_PHOTO);
+        return 0;
     }
 
     /**
-     * 表单校验并保存（区分新增/编辑模式 + 修复所有空指针和类型转换问题）
+     * 重构：根据分类ID获取名称（适配动态数据）
+     */
+    private String getCategoryNameById(long id) {
+        // 默认值处理
+        if (id == 0) {
+            return "未分类";
+        }
+
+        // 从缓存列表中匹配
+        for (Category category : mAllCategories) {
+            if (category.getId() == id) {
+                return category.getName();
+            }
+        }
+        return "未分类";
+    }
+
+    /**
+     * 重构：根据位置名称获取ID（适配动态数据）
+     */
+    private long getLocationIdByName(String name) {
+        // 默认值处理
+        if ("未指定".equals(name)) {
+            return 0;
+        }
+
+        // 从缓存列表中匹配
+        for (Location location : mAllLocations) {
+            if (location.getName().equals(name)) {
+                return location.getId();
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * 重构：根据位置ID获取名称（适配动态数据）
+     */
+    private String getLocationNameById(long id) {
+        // 默认值处理
+        if (id == 0) {
+            return "未指定";
+        }
+
+        // 从缓存列表中匹配
+        for (Location location : mAllLocations) {
+            if (location.getId() == id) {
+                return location.getName();
+            }
+        }
+        return "未指定";
+    }
+
+    /**
+     * 表单校验并保存（适配动态分类/位置ID）
      */
     private void validateAndSave() {
         // 1. 基础校验
@@ -422,7 +386,7 @@ public class InputFragment extends Fragment {
             }
         }
 
-        // 3. 日期校验（做空值判断）
+        // 3. 日期校验
         long validTime = 0;
         String expireDate = etExpireDate.getText().toString().trim();
         if (!expireDate.isEmpty()) {
@@ -436,44 +400,43 @@ public class InputFragment extends Fragment {
             }
         }
 
-        // 4. Spinner选中项（做空值判断）
-        String parentCat = spParentCategory.getSelectedItem() != null ?
-                spParentCategory.getSelectedItem().toString() : "未分类";
-        String childCat = spChildCategory.getSelectedItem() != null ?
-                spChildCategory.getSelectedItem().toString() : "无";
-        String location = spLocation.getSelectedItem() != null ?
-                spLocation.getSelectedItem().toString() : "未指定";
+        // 4. 动态获取分类/位置ID
+        String parentCatName = spParentCategory.getSelectedItem().toString();
+        String childCatName = spChildCategory.getSelectedItem().toString();
+        String locationName = spLocation.getSelectedItem().toString();
 
-        // 5. 构建Item对象（区分新增/编辑模式）
+        long parentCategoryId = getCategoryIdByName(parentCatName, true);
+        long childCategoryId = getCategoryIdByName(childCatName, false);
+        long locationId = getLocationIdByName(locationName);
+
+        // 5. 构建Item对象
         Item item;
         if (isEditMode) {
-            // 编辑模式：复用原有物品对象，仅更新字段
             item = mEditItem;
             item.setName(name);
-            item.setParentCategoryId(getCategoryId(parentCat));
-            item.setChildCategoryId(getCategoryId(childCat));
-            item.setLocationId(getLocationId(location));
+            item.setParentCategoryId(parentCategoryId);
+            item.setChildCategoryId(childCategoryId);
+            item.setLocationId(locationId);
             item.setCount(quantity);
             item.setValidTime(validTime);
             item.setRemark(etDescription.getText().toString().trim());
-            item.setUpdateTime(System.currentTimeMillis()); // 仅更新修改时间
+            item.setUpdateTime(System.currentTimeMillis());
         } else {
-            // 新增模式：创建新对象
             item = new Item();
-            item.setUuid(UUID.randomUUID().toString()); // 唯一标识
+            item.setUuid(UUID.randomUUID().toString());
             item.setName(name);
-            item.setParentCategoryId(getCategoryId(parentCat));
-            item.setChildCategoryId(getCategoryId(childCat));
-            item.setLocationId(getLocationId(location));
+            item.setParentCategoryId(parentCategoryId);
+            item.setChildCategoryId(childCategoryId);
+            item.setLocationId(locationId);
             item.setCount(quantity);
             item.setValidTime(validTime);
             item.setRemark(etDescription.getText().toString().trim());
-            item.setIsDeleted(0); // 未删除
+            item.setIsDeleted(0);
             item.setCreateTime(System.currentTimeMillis());
             item.setUpdateTime(System.currentTimeMillis());
         }
 
-        // 6. 拼接图片路径（处理空列表）
+        // 6. 拼接图片路径
         StringBuilder imagePaths = new StringBuilder();
         for (int i = 0; i < mImagePaths.size(); i++) {
             imagePaths.append(mImagePaths.get(i));
@@ -483,41 +446,176 @@ public class InputFragment extends Fragment {
         }
         item.setImagePaths(imagePaths.toString());
 
-        // 7. 保存/更新数据（区分新增/编辑）
+        // 7. 保存/更新数据
         if (isEditMode) {
-            mInputViewModel.updateItem(item); // 编辑：调用更新接口
+            mInputViewModel.updateItem(item);
         } else {
-            mInputViewModel.saveItem(item); // 新增：调用保存接口
+            mInputViewModel.saveItem(item);
+        }
+    }
+
+    // ---------------------- 以下为原有核心逻辑（仅适配动态数据） ----------------------
+
+    private void initAddImageButton() {
+        ivAddImage = new ImageView(requireContext());
+        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
+                dp2px(70), dp2px(70));
+        btnParams.setMargins(dp2px(4), dp2px(0), dp2px(4), dp2px(0));
+        ivAddImage.setLayoutParams(btnParams);
+        ivAddImage.setBackgroundResource(R.color.darker_gray);
+        ivAddImage.setPadding(dp2px(15), dp2px(15), dp2px(15), dp2px(15));
+        ivAddImage.setImageResource(R.drawable.ic_menu_camera);
+        ivAddImage.setScaleType(ImageView.ScaleType.CENTER);
+        ivAddImage.setOnClickListener(v -> showImageChooseDialog());
+        llImagePreview.addView(ivAddImage);
+    }
+
+    private void receiveEditParams() {
+        Bundle args = getArguments();
+        if (args != null && args.containsKey("edit_item")) {
+            isEditMode = true;
+            mEditItem = (Item) args.getSerializable("edit_item");
+            // 延迟回填，等待ViewModel数据加载完成
         }
     }
 
     /**
-     * 分类名称转ID（适配数据库字段类型）
+     * 表单数据回填（适配动态数据，等待数据加载完成后执行）
      */
-    private long getCategoryId(String catName) {
-        switch (catName) {
-            case "食品": return 1;
-            case "日用品": return 2;
-            case "电子产品": return 3;
-            default: return 0; // 未分类/无
+    private void fillFormData() {
+        if (mEditItem == null || isFormFilled || mAllCategories.isEmpty() || mAllLocations.isEmpty()) {
+            return;
+        }
+
+        // 1. 基础字段回填
+        etName.setText(mEditItem.getName());
+        etQuantity.setText(String.valueOf(mEditItem.getCount()));
+        etDescription.setText(mEditItem.getRemark());
+
+        // 2. 有效期回填
+        if (mEditItem.getValidTime() > 0) {
+            etExpireDate.setText(sdf.format(new Date(mEditItem.getValidTime())));
+        }
+
+        // 3. 图片预览区回填
+        if (mEditItem.getImagePaths() != null && !mEditItem.getImagePaths().isEmpty()) {
+            mImagePaths.clear();
+            int childCount = llImagePreview.getChildCount();
+            for (int i = childCount - 1; i > 0; i--) {
+                llImagePreview.removeViewAt(i);
+            }
+
+            String[] paths = mEditItem.getImagePaths().split(",");
+            for (String path : paths) {
+                if (!path.isEmpty()) {
+                    mImagePaths.add(path);
+                    previewImage(path);
+                }
+            }
+        }
+
+        // 标记表单已回填
+        isFormFilled = true;
+        // 修改保存按钮文字
+        btnSave.setText("保存修改");
+    }
+
+    private void fillSpinnerByValue(Spinner spinner, String value) {
+        ArrayAdapter<String> adapter = (ArrayAdapter<String>) spinner.getAdapter();
+        for (int i = 0; i < adapter.getCount(); i++) {
+            if (adapter.getItem(i).equals(value)) {
+                spinner.setSelection(i);
+                break;
+            }
         }
     }
 
-    /**
-     * 位置名称转ID（适配数据库字段类型）
-     */
-    private long getLocationId(String locName) {
-        switch (locName) {
-            case "客厅": return 1;
-            case "卧室": return 2;
-            case "厨房": return 3;
-            default: return 0; // 未指定
+    private void initView(View view) {
+        etName = view.findViewById(R.id.et_name);
+        etExpireDate = view.findViewById(R.id.et_expire_date);
+        etQuantity = view.findViewById(R.id.et_quantity);
+        etDescription = view.findViewById(R.id.et_description);
+        spParentCategory = view.findViewById(R.id.sp_parent_category);
+        spChildCategory = view.findViewById(R.id.sp_child_category);
+        spLocation = view.findViewById(R.id.sp_location);
+        llImagePreview = view.findViewById(R.id.ll_image_preview);
+        btnSave = view.findViewById(R.id.btn_save);
+    }
+
+    private void showDatePicker() {
+        Calendar calendar = Calendar.getInstance();
+        DatePickerDialog dialog = new DatePickerDialog(requireContext(),
+                (view, year, month, dayOfMonth) -> {
+                    String date = String.format(Locale.CHINA, "%d-%02d-%02d",
+                            year, month + 1, dayOfMonth);
+                    etExpireDate.setText(date);
+                },
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH),
+                calendar.get(Calendar.DAY_OF_MONTH));
+        dialog.show();
+    }
+
+    private void showImageChooseDialog() {
+        String[] options = {"拍照", "从相册选择"};
+        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
+        builder.setTitle("选择图片来源")
+                .setItems(options, (dialog, which) -> {
+                    if (which == 0) {
+                        takePhoto();
+                    } else {
+                        choosePhoto();
+                    }
+                })
+                .show();
+    }
+
+    private void takePhoto() {
+        if (!PermissionUtils.hasCameraPermission(requireContext())) {
+            mPermissionAction = "take_photo";
+            PermissionUtils.requestCameraPermission(this, PERMISSION_REQUEST_CODE);
+            return;
+        }
+
+        try {
+            mPhotoFile = ImageUtils.createImageFile(requireContext());
+            Uri photoUri = FileProvider.getUriForFile(requireContext(),
+                    "com.baixiaosheng.inventory.fileprovider", mPhotoFile);
+
+            Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+            intent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
+            if (intent.resolveActivity(requireContext().getPackageManager()) != null) {
+                startActivityForResult(intent, REQUEST_TAKE_PHOTO);
+            } else {
+                Toast.makeText(getContext(), "未找到相机应用", Toast.LENGTH_SHORT).show();
+            }
+        } catch (IOException e) {
+            Log.e("InputFragment", "创建拍照文件失败：" + e.getMessage());
+            Toast.makeText(getContext(), "创建图片文件失败", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Log.e("InputFragment", "拍照异常：" + e.getMessage());
+            Toast.makeText(getContext(), "拍照失败，请重试", Toast.LENGTH_SHORT).show();
         }
     }
 
-    /**
-     * 清空表单
-     */
+    private void choosePhoto() {
+        if (!PermissionUtils.hasStoragePermission(requireContext())) {
+            mPermissionAction = "choose_photo";
+            PermissionUtils.requestStoragePermission(this, PERMISSION_REQUEST_STORAGE);
+            return;
+        }
+
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P && !PermissionUtils.hasWriteStoragePermission(requireContext())) {
+            mPermissionAction = "choose_photo";
+            PermissionUtils.requestWriteStoragePermission(this, PERMISSION_REQUEST_WRITE_STORAGE);
+            return;
+        }
+
+        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        intent.setType("image/*");
+        startActivityForResult(Intent.createChooser(intent, "选择图片"), REQUEST_CHOOSE_PHOTO);
+    }
+
     private void clearForm() {
         etName.setText("");
         etExpireDate.setText("");
@@ -528,19 +626,15 @@ public class InputFragment extends Fragment {
         spLocation.setSelection(0);
         mImagePaths.clear();
         llImagePreview.removeAllViews();
-        // 编辑模式清空后重置为新增模式
-        // 关键修复：重新初始化添加图片按钮
         initAddImageButton();
         if (isEditMode) {
             isEditMode = false;
             mEditItem = null;
+            isFormFilled = false;
             btnSave.setText("保存");
         }
     }
 
-    /**
-     * 图片预览（简化版，避免依赖缺失的布局文件）
-     */
     private void previewImage(String filePath) {
         try {
             Bitmap bitmap = ImageUtils.decodeImage(filePath);
@@ -549,7 +643,6 @@ public class InputFragment extends Fragment {
                 return;
             }
 
-            // 创建预览ImageView（无需额外布局文件）
             ImageView ivPreview = new ImageView(requireContext());
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                     dp2px(100), dp2px(100));
@@ -558,11 +651,9 @@ public class InputFragment extends Fragment {
             ivPreview.setImageBitmap(bitmap);
             ivPreview.setScaleType(ImageView.ScaleType.CENTER_CROP);
 
-            // 长按删除
             ivPreview.setOnLongClickListener(v -> {
                 mImagePaths.remove(filePath);
                 llImagePreview.removeView(ivPreview);
-                // 回收Bitmap
                 if (!bitmap.isRecycled()) {
                     bitmap.recycle();
                 }
@@ -576,9 +667,6 @@ public class InputFragment extends Fragment {
         }
     }
 
-    /**
-     * dp转px工具方法（做空值判断）
-     */
     private int dp2px(int dp) {
         if (getContext() == null) return dp;
         return (int) (dp * getResources().getDisplayMetrics().density + 0.5f);
@@ -591,7 +679,6 @@ public class InputFragment extends Fragment {
             return;
         }
 
-        // 拍照返回
         if (requestCode == REQUEST_TAKE_PHOTO) {
             if (mPhotoFile != null && mPhotoFile.exists()) {
                 String path = mPhotoFile.getAbsolutePath();
@@ -600,10 +687,7 @@ public class InputFragment extends Fragment {
             } else {
                 Toast.makeText(getContext(), "拍照文件丢失", Toast.LENGTH_SHORT).show();
             }
-        }
-
-        // 选图返回（适配Android 10+路径）
-        else if (requestCode == REQUEST_CHOOSE_PHOTO) {
+        } else if (requestCode == REQUEST_CHOOSE_PHOTO) {
             if (data != null && data.getData() != null) {
                 Uri uri = data.getData();
                 String path = ImageUtils.getPathFromUri(requireContext(), uri);
@@ -622,18 +706,13 @@ public class InputFragment extends Fragment {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
 
-        // 处理存储权限（选图）
         if (requestCode == PERMISSION_REQUEST_STORAGE) {
             if (granted) {
-                // 权限授予，重新执行选图操作
                 choosePhoto();
             } else {
-                // 权限被拒绝
                 if (shouldShowRequestPermissionRationale(permissions[0])) {
-                    // 用户只是拒绝，未勾选「不再询问」，提示需要权限
                     Toast.makeText(getContext(), "存储权限被拒绝，无法从相册选择图片", Toast.LENGTH_SHORT).show();
                 } else {
-                    // 用户拒绝且勾选「不再询问」，引导到设置页
                     new AlertDialog.Builder(requireContext())
                             .setTitle("权限提示")
                             .setMessage("存储权限已被禁用，请前往设置页开启，否则无法从相册选择图片")
@@ -642,12 +721,8 @@ public class InputFragment extends Fragment {
                             .show();
                 }
             }
-        }
-
-        // 处理相机权限（拍照）
-        else if (requestCode == PERMISSION_REQUEST_CODE) {
+        } else if (requestCode == PERMISSION_REQUEST_CODE) {
             if (granted) {
-                // 权限授予，重新执行拍照操作
                 if ("take_photo".equals(mPermissionAction)) {
                     takePhoto();
                 }
@@ -666,18 +741,13 @@ public class InputFragment extends Fragment {
         }
     }
 
-    /**
-     * 跳转到应用权限设置页（兼容HarmonyOS）
-     */
     private void goToAppSettings() {
         try {
-            // 优先尝试HarmonyOS专属设置页
             Intent intent = new Intent();
             intent.setAction("com.huawei.settings.permissionmanage.PermissionManageActivity");
             intent.putExtra("packageName", requireContext().getPackageName());
             startActivity(intent);
         } catch (Exception e) {
-            // 兼容失败则用Android原生设置页
             Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
             Uri uri = Uri.fromParts("package", requireContext().getPackageName(), null);
             intent.setData(uri);
@@ -688,7 +758,6 @@ public class InputFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        // 回收所有Bitmap，避免内存泄漏
         for (int i = 0; i < llImagePreview.getChildCount(); i++) {
             View child = llImagePreview.getChildAt(i);
             if (child instanceof ImageView) {
