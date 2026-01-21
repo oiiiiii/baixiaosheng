@@ -32,4 +32,28 @@
     <string name="delete_child_category_with_items_tip">该分类下存在关联物品，删除会清空物品此属性。</string>
     <!-- 父分类删除提示（有子分类/物品） -->
     <string name="delete_parent_category_with_child_or_items_tip">分类下存在关联物品/子分类，删除会清空物品分类、子分类属性。</string>
+
+    <!-- 回收站 -->
+    <string name="recycle_title">回收站</string>
+    <string name="recycle_empty">回收站为空</string>
+    <string name="action_restore">恢复</string>
+    <string name="action_delete_permanent">彻底删除</string>
+    <string name="hint_delete_reason">请输入删除原因（可选）</string>
+    <string name="dialog_restore_title">确认恢复</string>
+    <string name="dialog_restore_msg">是否确认恢复选中的物品？</string>
+    <string name="dialog_delete_permanent_title">确认彻底删除</string>
+    <string name="dialog_delete_permanent_msg">彻底删除后将无法恢复，是否确认？</string>
+    <string name="toast_restore_success">恢复成功</string>
+    <string name="toast_restore_fail">恢复失败</string>
+    <string name="toast_delete_success">彻底删除成功</string>
+    <string name="toast_delete_fail">彻底删除失败</string>
+
+
+
+    <string name="empty_recycle_description">空回收站图标</string>
+    <string name="confirm_restore_item">确定要恢复这个物品吗？</string>
+    <string name="confirm_delete_item">确定要彻底删除这个物品吗？\n\n此操作不可恢复！</string>
+    <string name="confirm_restore_multiple">确定要恢复选中的 %d 个物品吗？</string>
+    <string name="confirm_delete_multiple">确定要彻底删除选中的 %d 个物品吗？\n\n此操作不可恢复！</string>
+    <string name="confirm_clear_all">确定要清空回收站吗？\n\n这将彻底删除所有物品，此操作不可恢复！</string>
 </resources>

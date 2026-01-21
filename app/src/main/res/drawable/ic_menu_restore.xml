@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?attr/colorOnPrimary"> <!-- 适配主题色，也可固定为#FFFFFF -->
+
+    <!-- 恢复箭头主体 -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M12,3L4,9v12h16V9L12,3zM19,20H5V10l7-4.99L19,10V20zM16,12h-2v4h-4v-4H8l4,-4 4,4z"/>
+</vector>

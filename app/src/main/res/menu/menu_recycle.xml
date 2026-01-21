@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- 选择所有 -->
+    <item
+        android:id="@+id/action_select_all"
+        android:title="选择"
+        android:icon="@drawable/ic_select_all"
+        app:showAsAction="always" />
+
+    <!-- 清空回收站 -->
+    <item
+        android:id="@+id/action_clear_all"
+        android:title="清空"
+        android:icon="@drawable/ic_clear_all"
+        app:showAsAction="always" />
+
+</menu>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- 批量恢复 -->
+    <item
+        android:id="@+id/menu_batch_restore"
+        android:title="恢复选中"
+        android:icon="@drawable/ic_menu_restore"
+        app:showAsAction="ifRoom"/>
+
+    <!-- 批量删除 -->
+    <item
+        android:id="@+id/menu_batch_delete"
+        android:title="彻底删除"
+        android:icon="@android:drawable/ic_menu_delete"
+        app:showAsAction="ifRoom"/>
+
+    <!-- 取消批量模式 -->
+    <item
+        android:id="@+id/menu_cancel_batch"
+        android:title="取消"
+        android:icon="@android:drawable/ic_menu_close_clear_cancel"
+        app:showAsAction="ifRoom"/>
+</menu>

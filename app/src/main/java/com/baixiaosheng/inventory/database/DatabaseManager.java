@@ -1,6 +1,8 @@
 package com.baixiaosheng.inventory.database;
 
 import android.content.Context;
+import android.util.Log;
+
 import androidx.lifecycle.LiveData;
 import com.baixiaosheng.inventory.database.entity.Category;
 import com.baixiaosheng.inventory.database.entity.Item;
@@ -34,6 +36,15 @@ public class DatabaseManager {
             }
         }
         return INSTANCE;
+    }
+
+    // ==================== 事务操作封装 ====================
+    /**
+     * 执行数据库事务
+     * @param runnable 事务内要执行的逻辑
+     */
+    public void runInTransaction(Runnable runnable) {
+        db.runInTransaction(runnable);
     }
 
     // ==================== 分类表操作 ====================
@@ -300,6 +311,12 @@ public class DatabaseManager {
         return db.itemDao().getDeletedItems();
     }
 
+    // 添加这个方法
+    public LiveData<List<Item>> getDeletedItemsLive() {
+        // 需要在ItemDao中添加对应的LiveData查询方法
+        return db.itemDao().getDeletedItemsLive();
+    }
+
     // ==================== 复杂查询方法 ====================
 
     public LiveData<List<ItemWithName>> queryItemsWithName(
@@ -362,53 +379,47 @@ public class DatabaseManager {
                 expireStart, expireEnd);
     }
 
-    // ==================== 回收站表操作 ====================
 
+    // ==================== 回收站表操作（完全封装Dao调用，简化上层逻辑） ====================
+    // 封装：批量恢复回收站物品（上层无需处理事务细节）
     public int restoreItemsWithTransaction(List<Long> recycleIds, List<Long> itemIds) {
         if (recycleIds == null || itemIds == null || recycleIds.isEmpty() || itemIds.isEmpty()
                 || recycleIds.size() != itemIds.size()) {
-            android.util.Log.e("DatabaseManager", "批量还原参数错误：ID列表为空或长度不匹配");
+            Log.e("DatabaseManager", "批量还原参数错误：ID列表为空或长度不匹配");
             return 0;
         }
 
         AtomicInteger successCount = new AtomicInteger(0);
         try {
-            db.runInTransaction(() -> {
+            runInTransaction (() -> { // 复用封装的事务方法
                 for (int i = 0; i < recycleIds.size(); i++) {
                     long recycleId = recycleIds.get(i);
                     long itemId = itemIds.get(i);
                     try {
-                        Recycle recycle = getRecycleById(recycleId);
-                        if (recycle == null || recycle.getItemId() != itemId) {
-                            android.util.Log.w("DatabaseManager", "回收站记录ID：" + recycleId + " 与物品ID：" + itemId + " 不匹配，跳过");
-                            continue;
-                        }
-                        Item item = getItemById(itemId);
-                        if (item == null || item.getIsDeleted() != 1) {
-                            android.util.Log.w("DatabaseManager", "物品ID：" + itemId + " 不存在或未删除，跳过");
-                            continue;
-                        }
+                        // 1. 恢复物品（复用封装方法）
                         int restoreResult = restoreItemById(itemId);
                         if (restoreResult <= 0) {
-                            android.util.Log.w("DatabaseManager", "物品ID：" + itemId + " 恢复失败，跳过");
+                            Log.w("DatabaseManager", "物品ID：" + itemId + " 恢复失败");
                             continue;
                         }
+
+                        // 2. 删除回收站记录（封装成方法，见下方）
                         int deleteResult = deleteRecycleItemById(recycleId);
                         if (deleteResult <= 0) {
-                            android.util.Log.w("DatabaseManager", "回收站记录ID：" + recycleId + " 删除失败，跳过");
-                            item.setIsDeleted(1);
-                            updateItem(item);
+                            Log.w("DatabaseManager", "回收站记录ID：" + recycleId + " 删除失败");
+                            // 回滚：重新标记为删除（复用封装方法）
+                            markItemAsDeleted(itemId);
                             continue;
                         }
                         successCount.incrementAndGet();
                     } catch (Exception e) {
-                        android.util.Log.e("DatabaseManager", "处理回收站ID：" + recycleId + " 失败：", e);
+                        Log.e("DatabaseManager", "处理回收站ID：" + recycleId + " 失败：", e);
                         continue;
                     }
                 }
             });
         } catch (Exception e) {
-            android.util.Log.e("DatabaseManager", "批量还原事务执行异常：", e);
+            Log.e("DatabaseManager", "批量还原事务执行异常：", e);
         }
         return successCount.get();
     }
@@ -426,15 +437,9 @@ public class DatabaseManager {
     }
 
     public long addRecycle(Recycle recycle) {
-        if (recycle == null) {
-            return -1;
-        }
-        if (recycle.getItemId() <= 0) {
-            return -1;
-        }
-        if (recycle.getItemName() == null || recycle.getItemName().trim().isEmpty()) {
-            return -1;
-        }
+        if (recycle == null) return -1;
+        if (recycle.getItemId() <= 0) return -1;
+        if (recycle.getItemName() == null || recycle.getItemName().trim().isEmpty()) return -1;
         if (recycle.getDeleteTime() <= 0) {
             recycle.setDeleteTime(System.currentTimeMillis());
         }
@@ -448,11 +453,84 @@ public class DatabaseManager {
         return db.recycleDao().getAllRecycleItemsSync();
     }
 
+    // 封装：删除单个回收站记录（上层无需调用Dao）
     public int deleteRecycleItemById(long recycleId) {
-        return db.recycleDao().deleteRecycleItemById(recycleId);
+        try {
+            return db.recycleDao().deleteRecycleItemById(recycleId);
+        } catch (Exception e) {
+            Log.e("DatabaseManager", "删除回收站记录失败：" + recycleId, e);
+            return 0;
+        }
     }
 
     public int deleteRecycleItemsByIds(List<Long> recycleIds) {
         return db.recycleDao().deleteRecycleItemsByIds(recycleIds);
+    }
+
+    // 封装：恢复单个回收站物品（上层无需处理事务/回滚逻辑）
+    public int restoreSingleRecycleItem(Recycle recycle) {
+        if (recycle == null || recycle.getItemId() <= 0) {
+            Log.e("DatabaseManager", "恢复参数错误：回收站记录为空或物品ID无效");
+            return 0;
+        }
+        AtomicInteger result = new AtomicInteger(0);
+        try {
+            runInTransaction (() -> { // 复用封装的事务方法
+                // 1. 恢复物品（复用封装方法）
+                int restoreResult = restoreItemById(recycle.getItemId());
+                if (restoreResult <= 0) {
+                    Log.w("DatabaseManager", "物品恢复失败：" + recycle.getItemId());
+                    return;
+                }
+
+                // 2. 删除回收站记录（复用封装方法）
+                int deleteRecycleResult = deleteRecycleItemById(recycle.getId());
+                if (deleteRecycleResult <= 0) {
+                    Log.w("DatabaseManager", "回收站记录删除失败，回滚物品状态：" + recycle.getId());
+                    // 回滚：重新标记为删除（复用封装方法）
+                    markItemAsDeleted(recycle.getItemId());
+                    return;
+                }
+                result.set(1);
+            });
+        } catch (Exception e) {
+            Log.e("DatabaseManager", "恢复单个回收站物品异常：", e);
+        }
+        return result.get();
+    }
+
+    // ==================== 新增：补充缺失的封装方法（避免上层接触Dao） ====================
+    // 封装：批量标记物品为删除（上层无需传uuidList）
+    public void batchMarkDeleted(List<Long> itemIds) {
+        List<String> uuidList = itemIds.stream()
+                .map(this::getItemById)
+                .filter(item -> item != null)
+                .map(Item::getUuid)
+                .toList();
+        long updateTime = System.currentTimeMillis();
+        db.itemDao().batchMarkDeleted(uuidList, updateTime);
+    }
+
+    // 封装：恢复回收站物品（按uuid，上层无需接触Dao）
+    public void restoreItemFromRecycle(String uuid) {
+        long updateTime = System.currentTimeMillis();
+        db.itemDao().restoreItemFromRecycle(uuid, updateTime);
+    }
+
+    // 封装：批量恢复回收站物品（按uuidList，上层无需接触Dao）
+    public void batchRestoreFromRecycle(List<String> uuidList) {
+        long updateTime = System.currentTimeMillis();
+        db.itemDao().batchRestoreFromRecycle(uuidList, updateTime);
+    }
+
+    // 封装：获取回收站物品（分页+关键词，上层无需处理offset）
+    public LiveData<List<Item>> getRecycleItems(String keyword, int pageNum, int pageSize) {
+        int offset = (pageNum - 1) * pageSize;
+        return db.itemDao().getRecycleItems(keyword, pageSize, offset);
+    }
+
+    // 封装：获取回收站物品总数（上层无需调用Dao）
+    public LiveData<Integer> getRecycleItemsCount(String keyword) {
+        return db.itemDao().getRecycleItemsCount(keyword);
     }
 }

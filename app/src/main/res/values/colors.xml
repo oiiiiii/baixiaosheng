@@ -16,6 +16,7 @@
     <color name="red_500">#FFF44336</color> <!-- Material 标准红（常用） -->
 
     <!-- 灰色系（从浅到深） -->
+    <color name="gray">#FF666666</color>
     <color name="gray_300">#FFE0E0E0</color> <!-- 浅灰（边框/分割线） -->
     <color name="gray_500">#FF9E9E9E</color> <!-- 中灰（次要文字） -->
     <color name="gray_600">#FF757575</color> <!-- 深灰（备注文字） -->
@@ -34,6 +35,45 @@
     <color name="btn_primary_bg">#FF2196F3</color>
     <color name="btn_danger_bg">#B00020</color>
 
+    <!-- 子分类删除提示（有物品） -->
+
+    <color name="colorPrimaryDark">#3700B3</color>
+    <color name="colorAccent">#03DAC5</color>
+    <color name="textPrimary">#212121</color>
+    <color name="textSecondary">#757575</color>
+    <color name="backgroundEmpty">#F5F5F5</color>
+
+    <color name="selected_bg">#E0F7FA</color> <!-- 选中状态背景 -->
+    <color name="gray_light">#E0E0E0</color> <!-- 边框浅灰 -->
+
+    <!-- 文本颜色 -->
+    <color name="text_primary">#333333</color>
+    <color name="text_secondary">#666666</color>
+
+    <!-- 背景色 -->
+    <color name="item_normal_bg">#FFFFFF</color>
+    <color name="item_selected_bg">#E3F2FD</color>
+
+    <!-- 按钮颜色 -->
+    <color name="button_restore">#4CAF50</color>
+    <color name="button_delete">#F44336</color>
+    <color name="button_clear">#FF9800</color>
+
+
+    <!-- 主题颜色 -->
+
+    <color name="primary_light">#E8EAF6</color>
+    <color name="primary_dark">#303F9F</color>
+
+    <!-- 背景色 -->
+    <color name="background">#F5F5F5</color>
+
+
+    <color name="gray_700">#FF616161</color>
+
+
+    <color name="gray_100">#F5F5F5</color>
+    <color name="gray_200">#EEEEEE</color>
 
 
 </resources>

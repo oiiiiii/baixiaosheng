@@ -1,116 +1,106 @@
 package com.baixiaosheng.inventory.view.adapter;
 
+import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
-import android.widget.CheckBox;
 import android.widget.TextView;
-
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
-
 import com.baixiaosheng.inventory.R;
-import com.baixiaosheng.inventory.database.entity.Recycle;
-
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import com.baixiaosheng.inventory.database.entity.ItemWithName;
 import java.util.List;
-import java.util.Locale;
 
 /**
- * 回收站列表适配器
+ * 回收站物品列表适配器（复用QueryAdapter字段获取逻辑）
  */
-public class RecycleAdapter extends RecyclerView.Adapter<RecycleAdapter.RecycleBinViewHolder> {
+public class RecycleAdapter extends RecyclerView.Adapter<RecycleAdapter.RecycleViewHolder> {
+    private final Context context;
+    private List<ItemWithName> itemWithNameList;
 
-    private List<Recycle> mRecycleList;
-    private final OnItemSelectListener mOnItemSelectListener;
-    private final OnRestoreClickListener mOnRestoreClickListener;
-    private final OnDeleteForeverClickListener mOnDeleteForeverClickListener;
-    private final SimpleDateFormat mDateFormat;
-
-    // 选中状态变化回调
-    public interface OnItemSelectListener {
-        void onItemSelect(long recycleId, long itemId, boolean isSelected);
+    public RecycleAdapter(Context context) {
+        this.context = context;
     }
 
-    // 还原点击回调
-    public interface OnRestoreClickListener {
-        void onRestoreClick(long recycleId, long itemId);
-    }
-
-    // 彻底删除点击回调
-    public interface OnDeleteForeverClickListener {
-        void onDeleteForeverClick(long recycleId, long itemId);
-    }
-
-    public RecycleAdapter(List<Recycle> recycleList, OnItemSelectListener onItemSelectListener,
-                          OnRestoreClickListener onRestoreClickListener, OnDeleteForeverClickListener onDeleteForeverClickListener) {
-        this.mRecycleList = recycleList;
-        this.mOnItemSelectListener = onItemSelectListener;
-        this.mOnRestoreClickListener = onRestoreClickListener;
-        this.mOnDeleteForeverClickListener = onDeleteForeverClickListener;
-        this.mDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
+    /**
+     * 更新列表数据
+     */
+    public void setItemWithNameList(List<ItemWithName> itemWithNameList) {
+        this.itemWithNameList = itemWithNameList;
+        notifyDataSetChanged();
     }
 
     @NonNull
     @Override
-    public RecycleBinViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_recycle, parent, false);
-        return new RecycleBinViewHolder(view);
+    public RecycleViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(context)
+                .inflate(R.layout.item_recycle, parent, false);
+        return new RecycleViewHolder(view);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull RecycleBinViewHolder holder, int position) {
-        Recycle recycleItem = mRecycleList.get(position);
-        // 设置物品名称
-        holder.tvItemName.setText(recycleItem.getItemName());
-        // 设置删除时间
-        String deleteTime = mDateFormat.format(new Date(recycleItem.getDeleteTime()));
-        holder.tvItemDeleteTime.setText("删除时间：" + deleteTime);
-        // 复选框选中状态
-        holder.cbSelectItem.setChecked(false);
-        // 复选框点击事件
-        holder.cbSelectItem.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            mOnItemSelectListener.onItemSelect(recycleItem.getId(), recycleItem.getItemId(), isChecked);
-        });
-        // 还原按钮点击
-        holder.btnRestore.setOnClickListener(v -> {
-            mOnRestoreClickListener.onRestoreClick(recycleItem.getId(), recycleItem.getItemId());
-        });
-        // 彻底删除按钮点击
-        holder.btnDeleteForever.setOnClickListener(v -> {
-            mOnDeleteForeverClickListener.onDeleteForeverClick(recycleItem.getId(), recycleItem.getItemId());
-        });
+    public void onBindViewHolder(@NonNull RecycleViewHolder holder, int position) {
+        ItemWithName itemWithName = itemWithNameList.get(position);
+        if (itemWithName == null || itemWithName.item == null) return;
+
+        // 1. 物品名称（复用QueryAdapter逻辑）
+        holder.tvItemName.setText(itemWithName.item.getName() == null ? "未知名称" : itemWithName.item.getName());
+
+        // 2. 物品数量（复用QueryAdapter逻辑）
+        holder.tvQuantity.setText("数量：" + itemWithName.item.getCount());
+
+        // 3. 分类信息（完全复用QueryAdapter的分类展示规则）
+        String categoryDisplay;
+        if (itemWithName.item.getParentCategoryId() == 0) {
+            categoryDisplay = "未设置";
+        } else {
+            String parentCatName = itemWithName.parentCategoryName;
+            String displayParent = (parentCatName != null && !parentCatName.isEmpty())
+                    ? parentCatName
+                    : String.valueOf(itemWithName.item.getParentCategoryId());
+
+            if (itemWithName.item.getChildCategoryId() == 0) {
+                categoryDisplay = displayParent;
+            } else {
+                String childCatName = itemWithName.categoryName;
+                String displayChild = (childCatName != null && !childCatName.isEmpty())
+                        ? childCatName
+                        : String.valueOf(itemWithName.item.getChildCategoryId());
+                categoryDisplay = displayParent + "/" + displayChild;
+            }
+        }
+        holder.tvCategory.setText("分类：" + categoryDisplay);
+
+        // 4. 位置信息（复用QueryAdapter逻辑）
+        String locationDisplay;
+        if (itemWithName.locationName != null) {
+            locationDisplay = itemWithName.locationName;
+        } else {
+            locationDisplay = itemWithName.item.getLocationId() == 0 ? "未设置" : String.valueOf(itemWithName.item.getLocationId());
+        }
+        holder.tvLocation.setText("位置：" + locationDisplay);
     }
 
     @Override
     public int getItemCount() {
-        return mRecycleList.size();
+        return itemWithNameList == null ? 0 : itemWithNameList.size();
     }
 
     /**
-     * 更新数据
+     * 视图持有者
      */
-    public void updateData(List<Recycle> recycleList) {
-        this.mRecycleList = recycleList;
-        notifyDataSetChanged();
-    }
-
-    static class RecycleBinViewHolder extends RecyclerView.ViewHolder {
-        CheckBox cbSelectItem;
+    static class RecycleViewHolder extends RecyclerView.ViewHolder {
         TextView tvItemName;
-        TextView tvItemDeleteTime;
-        Button btnRestore;
-        Button btnDeleteForever;
+        TextView tvCategory;
+        TextView tvLocation;
+        TextView tvQuantity;
 
-        public RecycleBinViewHolder(@NonNull View itemView) {
+        public RecycleViewHolder(@NonNull View itemView) {
             super(itemView);
-            cbSelectItem = itemView.findViewById(R.id.cb_select_item);
             tvItemName = itemView.findViewById(R.id.tv_item_name);
-            tvItemDeleteTime = itemView.findViewById(R.id.tv_item_delete_time);
-            btnRestore = itemView.findViewById(R.id.btn_restore);
-            btnDeleteForever = itemView.findViewById(R.id.btn_delete_forever);
+            tvCategory = itemView.findViewById(R.id.tv_category);
+            tvLocation = itemView.findViewById(R.id.tv_location);
+            tvQuantity = itemView.findViewById(R.id.tv_quantity);
         }
     }
 }

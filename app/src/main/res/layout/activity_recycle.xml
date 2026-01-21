@@ -2,38 +2,36 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:padding="16dp">
 
-    <!-- 顶部批量操作栏 -->
-    <LinearLayout
+    <!-- 可选：添加标题栏 -->
+    <TextView
         android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:gravity="center_vertical"
-        android:paddingHorizontal="16dp"
-        android:background="@color/white">
+        android:layout_height="wrap_content"
+        android:text="回收站"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:padding="12dp"
+        android:background="@color/white"
+        android:elevation="2dp"/>
 
-        <Button
-            android:id="@+id/btn_restore_selected"
-            android:layout_width="100dp"
-            android:layout_height="wrap_content"
-            android:text="还原选中" />
-
-        <Button
-            android:id="@+id/btn_delete_selected"
-            android:layout_width="100dp"
-            android:layout_height="wrap_content"
-            android:layout_marginLeft="10dp"
-            android:text="彻底删除"
-            android:textColor="@color/red" />
-
-    </LinearLayout>
-
-    <!-- 回收站列表 -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_recycle_list"
+    <!-- 空状态提示 -->
+    <TextView
+        android:id="@+id/tv_empty_tip"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@color/white"
-        android:padding="10dp" />
+        android:gravity="center"
+        android:text="回收站为空"
+        android:textSize="18sp"
+        android:textColor="@color/gray_600"
+        android:visibility="gone"/>
+
+    <!-- 回收站物品列表 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_view_recycle"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone"/>
 
 </LinearLayout>

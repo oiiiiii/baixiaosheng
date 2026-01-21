@@ -53,6 +53,8 @@ public interface ItemDao {
     @Query("SELECT * FROM item WHERE id = :id AND isDeleted = 0")
     Item getItemById(long id);
 
+    @Query("SELECT * FROM item WHERE isDeleted = 1 ORDER BY updateTime DESC")
+    LiveData<List<Item>> getDeletedItemsLive();
 
     // 支持多个分类ID查询
     @Query("SELECT * FROM item WHERE isDeleted = 0 " +

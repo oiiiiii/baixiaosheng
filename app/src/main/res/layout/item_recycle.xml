@@ -1,60 +1,66 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="80dp"
-    android:gravity="center_vertical"
-    android:orientation="horizontal"
-    android:paddingHorizontal="16dp">
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:background="@drawable/item_bg_with_shadow"
+    android:elevation="3dp">
 
-    <CheckBox
-        android:id="@+id/cb_select_item"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        android:layout_marginRight="10dp" />
-
+    <!-- 第一行：名称（居左） + 数量（居右） -->
     <LinearLayout
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:orientation="vertical">
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
 
         <TextView
             android:id="@+id/tv_item_name"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:textSize="16sp"
-            android:textColor="@color/black" />
+            android:textStyle="bold"
+            android:textColor="@color/black"
+            android:maxLines="1"
+            android:ellipsize="end"/>
 
         <TextView
-            android:id="@+id/tv_item_delete_time"
-            android:layout_width="match_parent"
+            android:id="@+id/tv_quantity"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="12sp"
-            android:textColor="@color/darker_gray" />
-
+            android:textSize="14sp"
+            android:textColor="@color/black"
+            android:maxLines="1"
+            android:ellipsize="end"/>
     </LinearLayout>
 
+    <!-- 第二行：分类（居左） + 位置（居右） -->
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:layout_marginTop="4dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
 
-        <Button
-            android:id="@+id/btn_restore"
-            android:layout_width="60dp"
-            android:layout_height="30dp"
-            android:text="还原"
-            android:textSize="12sp" />
+        <TextView
+            android:id="@+id/tv_category"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="14sp"
+            android:textColor="@color/gray_500"
+            android:maxLines="1"
+            android:ellipsize="end"/>
 
-        <Button
-            android:id="@+id/btn_delete_forever"
-            android:layout_width="80dp"
-            android:layout_height="30dp"
-            android:layout_marginLeft="5dp"
-            android:text="彻底删除"
-            android:textColor="@color/red"
-            android:textSize="12sp" />
-
+        <TextView
+            android:id="@+id/tv_location"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:textColor="@color/gray_500"
+            android:maxLines="1"
+            android:ellipsize="end"/>
     </LinearLayout>
 
 </LinearLayout>

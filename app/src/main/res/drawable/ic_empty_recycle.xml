@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+    <!-- 回收站主体 -->
+    <path
+        android:fillColor="#BDBDBD"
+        android:pathData="M30,20h60v70h-60z" />
+
+    <!-- 回收站盖子 -->
+    <path
+        android:fillColor="#9E9E9E"
+        android:pathData="M20,20h80l-10,15H30z" />
+
+    <!-- 回收站线条 -->
+    <path
+        android:fillColor="#757575"
+        android:strokeWidth="2"
+        android:strokeColor="#757575"
+        android:pathData="M30,30h60M30,45h60M30,60h60M30,75h60" />
+
+    <!-- 空状态提示 -->
+    <path
+        android:fillColor="#FF6B6B"
+        android:pathData="M55,40l10,10 10,-10"
+        android:strokeWidth="2"
+        android:strokeColor="#FF6B6B" />
+
+    <!-- 感叹号 -->
+    <path
+        android:fillColor="#FF6B6B"
+        android:pathData="M60,70a5,5 0,1 1,0 -10 5,5 0,0 1,0 10z" />
+    <path
+        android:fillColor="#FF6B6B"
+        android:pathData="M60,80v10" />
+</vector>
