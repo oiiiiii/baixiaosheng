@@ -199,7 +199,15 @@ public class DatabaseManager {
 
     // 补充：添加根据ID删除位置的封装（原ViewModel中删除逻辑也可统一封装）
     public int deleteLocationById(long locationId) {
-        return db.locationDao().deleteLocationById(locationId);
+
+        // 新增：删除位置前，清空所有关联物品的locationId（设为0）
+        db.runInTransaction(() -> {
+            // 调用Dao层方法清空物品关联的位置ID（需先在ItemDao中定义该方法）
+            db.itemDao().clearItemLocationByLocationId(locationId);
+            // 再删除位置本身
+            db.locationDao().deleteLocationById(locationId);
+        });
+        return 1;
     }
 
     /**

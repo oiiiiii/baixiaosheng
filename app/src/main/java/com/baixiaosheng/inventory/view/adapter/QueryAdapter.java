@@ -57,11 +57,30 @@ public class QueryAdapter extends RecyclerView.Adapter<QueryAdapter.ItemViewHold
 
             // 使用分类和位置名称（ItemWithName的额外字段）
 
-            // 优化分类显示：未设置时展示“未设置/无”
-            if (itemWithName.parentCategoryName != null && itemWithName.categoryName != null) {
-                holder.tvCategory.setText(itemWithName.parentCategoryName + "/" + itemWithName.categoryName);
-            } else {
+
+            // 优化分类显示：按规则展示分类信息
+// 1. 未设置父分类（parentCategoryId=0）→ 显示“未设置”
+            if (itemWithName.item.getParentCategoryId() == 0) {
                 holder.tvCategory.setText("未设置");
+            } else {
+                // 2. 有父分类ID，优先使用父分类名称
+                String parentCatName = itemWithName.parentCategoryName;
+                String displayParent = (parentCatName != null && !parentCatName.isEmpty())
+                        ? parentCatName
+                        : String.valueOf(itemWithName.item.getParentCategoryId());
+
+                // 3. 判断子分类是否存在
+                if (itemWithName.item.getChildCategoryId() == 0) {
+                    // 无子分类 → 仅显示父分类
+                    holder.tvCategory.setText(displayParent);
+                } else {
+                    // 有子分类 → 拼接父/子分类
+                    String childCatName = itemWithName.categoryName;
+                    String displayChild = (childCatName != null && !childCatName.isEmpty())
+                            ? childCatName
+                            : String.valueOf(itemWithName.item.getChildCategoryId());
+                    holder.tvCategory.setText(displayParent + "/" + displayChild);
+                }
             }
 
             if (itemWithName.locationName != null) {

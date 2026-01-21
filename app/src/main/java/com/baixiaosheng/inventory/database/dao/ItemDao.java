@@ -172,6 +172,6 @@ public interface ItemDao {
      * 清空指定位置下所有物品的位置属性
      * 修正：移除对不存在的locationName字段的更新，仅清空locationId
      */
-    @Query("UPDATE item SET locationId = NULL WHERE locationId = :locationId")
+    @Query("UPDATE item SET locationId = 0 WHERE locationId = :locationId")
     void clearItemLocationByLocationId(long locationId);
 }
