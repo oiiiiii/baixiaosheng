@@ -7,8 +7,7 @@ import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
-import com.baixiaosheng.inventory.database.InventoryDatabase;
-import com.baixiaosheng.inventory.database.dao.LocationDao;
+import com.baixiaosheng.inventory.database.DatabaseManager;
 import com.baixiaosheng.inventory.database.entity.Location;
 
 import java.util.List;
@@ -20,7 +19,7 @@ import java.util.concurrent.Executors;
  */
 public class LocationManageViewModel extends AndroidViewModel {
 
-    private final LocationDao mLocationDao;
+    private final DatabaseManager mDatabaseManager;
     private final ExecutorService mExecutorService;
     private final MutableLiveData<List<Location>> mLocationList;
     private final MutableLiveData<Boolean> mOperationSuccess;
@@ -28,8 +27,7 @@ public class LocationManageViewModel extends AndroidViewModel {
 
     public LocationManageViewModel(@NonNull Application application) {
         super(application);
-        InventoryDatabase database = InventoryDatabase.getInstance(application);
-        mLocationDao = database.locationDao();
+        mDatabaseManager = DatabaseManager.getInstance(application);
         mExecutorService = Executors.newSingleThreadExecutor();
         mLocationList = new MutableLiveData<>();
         mOperationSuccess = new MutableLiveData<>();
@@ -43,7 +41,7 @@ public class LocationManageViewModel extends AndroidViewModel {
      */
     public void loadAllLocations() {
         mExecutorService.execute(() -> {
-            List<Location> locations = mLocationDao.getAllLocations();
+            List<Location> locations = mDatabaseManager.getAllLocations();
             mLocationList.postValue(locations);
         });
     }
@@ -60,8 +58,15 @@ public class LocationManageViewModel extends AndroidViewModel {
                     mOperationSuccess.postValue(false);
                     return;
                 }
+                // 校验名称重复（新增时排除ID为0）
+                boolean isDuplicate = mDatabaseManager.checkLocationNameDuplicate(location.getName().trim(), 0);
+                if (isDuplicate) {
+                    mErrorMsg.postValue("位置名称已存在，无法重复添加");
+                    mOperationSuccess.postValue(false);
+                    return;
+                }
                 // 插入位置
-                mLocationDao.insertLocation(location);
+                mDatabaseManager.addLocation(location);
                 mOperationSuccess.postValue(true);
                 // 重新加载列表
                 loadAllLocations();
@@ -84,8 +89,15 @@ public class LocationManageViewModel extends AndroidViewModel {
                     mOperationSuccess.postValue(false);
                     return;
                 }
+                // 校验名称重复（编辑时排除自身ID）
+                boolean isDuplicate = mDatabaseManager.checkLocationNameDuplicate(location.getName().trim(), location.getId());
+                if (isDuplicate) {
+                    mErrorMsg.postValue("位置名称已存在，无法修改");
+                    mOperationSuccess.postValue(false);
+                    return;
+                }
                 // 更新位置
-                mLocationDao.updateLocation(location);
+                mDatabaseManager.updateLocation(location);
                 mOperationSuccess.postValue(true);
                 // 重新加载列表
                 loadAllLocations();
@@ -96,21 +108,20 @@ public class LocationManageViewModel extends AndroidViewModel {
         });
     }
 
+
+
     /**
-     * 删除位置
+     * 删除位置（同时清空关联物品的位置属性）
      */
     public void deleteLocation(long locationId) {
         mExecutorService.execute(() -> {
             try {
-                // 校验是否有关联物品
-                int itemCount = mLocationDao.getRelatedItemCount(locationId);
-                if (itemCount > 0) {
-                    mErrorMsg.postValue("该位置关联" + itemCount + "个物品，无法删除");
-                    mOperationSuccess.postValue(false);
-                    return;
-                }
-                // 执行删除
-                mLocationDao.deleteLocationById(locationId);
+                // 步骤1：先清空关联物品的位置属性（核心新增逻辑）
+                // mDatabaseManager.clearItemLocationByLocationId(locationId);
+
+                // 步骤2：再删除位置
+                mDatabaseManager.deleteLocationById(locationId);
+
                 mOperationSuccess.postValue(true);
                 // 重新加载列表
                 loadAllLocations();
@@ -118,6 +129,16 @@ public class LocationManageViewModel extends AndroidViewModel {
                 mErrorMsg.postValue("删除位置失败：" + e.getMessage());
                 mOperationSuccess.postValue(false);
             }
+        });
+    }
+
+    /**
+     * 检查位置名称是否重复（排除编辑中的ID）
+     */
+    public void checkLocationNameDuplicate(String name, long excludeId, MutableLiveData<Boolean> isDuplicate) {
+        mExecutorService.execute(() -> {
+            boolean duplicate = mDatabaseManager.checkLocationNameDuplicate(name, excludeId);
+            isDuplicate.postValue(duplicate);
         });
     }
 

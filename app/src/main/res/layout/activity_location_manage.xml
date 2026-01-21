@@ -4,38 +4,30 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <!-- 顶部操作栏 -->
-    <LinearLayout
+    <!-- 页面顶部操作提示 -->
+    <TextView
         android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:gravity="center_vertical"
-        android:paddingHorizontal="16dp"
-        android:background="@color/white">
-
-        <EditText
-            android:id="@+id/et_location_name"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:hint="输入位置名称"
-            android:singleLine="true"
-            android:textSize="16sp" />
-
-        <Button
-            android:id="@+id/btn_add_location"
-            android:layout_width="80dp"
-            android:layout_height="48dp"
-            android:layout_marginLeft="10dp"
-            android:text="添加" />
-
-    </LinearLayout>
+        android:layout_height="wrap_content"
+        android:text="操作提示：点击位置编辑名称 | 长按位置删除"
+        android:textSize="12sp"
+        android:textColor="@android:color/darker_gray"
+        android:padding="8dp"/>
 
     <!-- 位置列表 -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_location_list"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:background="@color/white"
         android:padding="10dp" />
+
+    <!-- 底部添加按钮 -->
+    <Button
+        android:id="@+id/btn_add_new_location"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:text="添加新位置"
+        android:layout_margin="12dp"/>
 
 </LinearLayout>

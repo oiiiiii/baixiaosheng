@@ -72,13 +72,6 @@ public interface CategoryDao {
     @Query("SELECT * FROM category WHERE categoryName = :categoryName AND parentCategoryId = :parentCategoryId")
     List<Category> getCategoriesByCategoryNameAndParentId(String categoryName, long parentCategoryId);
 
-    /** 清空指定父分类关联物品的父分类ID */
-    @Query("UPDATE item SET parentCategoryId = 0, childCategoryId = 0 WHERE parentCategoryId = :parentCategoryId")
-    void clearItemParentCategoryId(long parentCategoryId);
-
-    /** 清空指定子分类关联物品的子分类ID */
-    @Query("UPDATE item SET childCategoryId = 0 WHERE childCategoryId = :childCategoryId")
-    void clearItemChildCategoryId(long childCategoryId);
 
     /** 查询指定父分类下的子分类数量 */
     @Query("SELECT COUNT(*) FROM category WHERE parentCategoryId = :parentCategoryId")
@@ -90,9 +83,21 @@ public interface CategoryDao {
 
     /** 清空父分类关联物品的分类信息（包括父分类ID和子分类ID） */
     @Query("UPDATE item SET parentCategoryId = 0, childCategoryId = 0 WHERE parentCategoryId = :parentId")
-    void clearItemCategoryByParentId(long parentId);
+    void clearItemParentCategoryId(long parentId);
 
     /** 清空子分类关联物品的分类信息（仅清空子分类ID） */
     @Query("UPDATE item SET childCategoryId = 0 WHERE childCategoryId = :childId")
-    void clearItemCategoryByChildId(long childId);
+    void clearItemChildCategoryId(long childId);
+
+    /**
+     * 统计同名父分类数量（排除自身）
+     */
+    @Query("SELECT COUNT(*) FROM category WHERE parentCategoryId = 0 AND categoryName = :name AND id != :excludeId")
+    int countParentCategoryWithName(String name, long excludeId);
+
+    /**
+     * 统计同一父分类下同名子分类数量（排除自身）
+     */
+    @Query("SELECT COUNT(*) FROM category WHERE parentCategoryId = :parentId AND categoryName = :name AND id != :excludeId")
+    int countChildCategoryWithName(String name, long parentId, long excludeId);
 }

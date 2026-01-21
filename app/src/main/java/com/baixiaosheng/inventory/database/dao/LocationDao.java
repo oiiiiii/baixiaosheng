@@ -51,8 +51,13 @@ public interface LocationDao {
     @Query("DELETE FROM location WHERE id = :locationId")
     int deleteLocationById(long locationId);
 
-    //阶段7新添加的，有可能不对
+
     // 获取位置关联的物品数量
     @Query("SELECT COUNT(*) FROM item WHERE locationId = :locationId AND isDeleted = 0")
     int getRelatedItemCount(long locationId);
+
+    //检查位置名称是否存在
+
+    @Query("SELECT COUNT(*) > 0 FROM location WHERE name = :name AND id != :excludeId")
+    boolean isNameExists(String name, long excludeId);
 }

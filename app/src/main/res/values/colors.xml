@@ -29,4 +29,11 @@
 
     <color name="primary">#FFFF5733</color>
 
+    <!-- 分类管理界面-->
+    <color name="chip_bg">#FF2196F3</color>
+    <color name="btn_primary_bg">#FF2196F3</color>
+    <color name="btn_danger_bg">#B00020</color>
+
+
+
 </resources>

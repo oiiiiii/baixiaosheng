@@ -1,3 +1,35 @@
 <resources>
     <string name="app_name">百晓生库存管理</string>
+    <!-- 分类管理 -->
+    <string name="category_manage_title">分类管理</string>
+    <string name="add_category">添加分类</string>
+    <string name="edit_category">编辑分类</string>
+    <string name="delete_category">删除分类</string>
+    <string name="category_name">分类名称</string>
+    <string name="parent_id">父分类ID</string>
+    <string name="input_category_name">请输入分类名称</string>
+    <string name="input_parent_id_tip">0表示一级分类</string>
+    <string name="category_name_empty">分类名称不能为空</string>
+    <string name="delete_category_confirm">确定删除分类「%s」吗？</string>
+
+    <string name="operation_success">操作成功</string>
+    <string name="operation_failed">操作失败</string>
+    <string name="confirm">确定</string>
+    <string name="cancel">取消</string>
+    <string name="edit">编辑</string>
+    <string name="delete">删除</string>
+    <string name="add_parent_category">添加父分类</string>
+    <string name="add_child_category">添加子分类</string>
+    <!-- 分类名称重复提示 -->
+    <string name="parent_category_name_duplicate">已存在相同名称的父分类，请修改！</string>
+    <string name="child_category_name_duplicate">当前父分类下已存在相同名称的子分类，请修改！</string>
+
+
+    <string name="category_has_child">该分类下存在子分类，无法删除</string>
+    <string name="category_has_child_or_item">该分类下存在子分类或物品，无法删除</string>
+
+    <!-- 子分类删除提示（有物品） -->
+    <string name="delete_child_category_with_items_tip">该分类下存在关联物品，删除会清空物品此属性。</string>
+    <!-- 父分类删除提示（有子分类/物品） -->
+    <string name="delete_parent_category_with_child_or_items_tip">分类下存在关联物品/子分类，删除会清空物品分类、子分类属性。</string>
 </resources>

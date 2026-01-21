@@ -1,10 +1,7 @@
 package com.baixiaosheng.inventory.database;
 
 import android.content.Context;
-
-
 import androidx.lifecycle.LiveData;
-
 import com.baixiaosheng.inventory.database.entity.Category;
 import com.baixiaosheng.inventory.database.entity.Item;
 import com.baixiaosheng.inventory.database.entity.ItemWithName;
@@ -12,7 +9,9 @@ import com.baixiaosheng.inventory.database.entity.Location;
 import com.baixiaosheng.inventory.database.entity.Recycle;
 import com.baixiaosheng.inventory.model.FilterCondition;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 数据库操作工具类（封装所有增删改查，对外提供统一接口）
@@ -22,12 +21,10 @@ public class DatabaseManager {
     private static DatabaseManager INSTANCE;
     private final InventoryDatabase db;
 
-    // 私有构造函数
     private DatabaseManager(Context context) {
         db = InventoryDatabase.getInstance(context);
     }
 
-    // 单例获取
     public static DatabaseManager getInstance(Context context) {
         if (INSTANCE == null) {
             synchronized (DatabaseManager.class) {
@@ -39,8 +36,8 @@ public class DatabaseManager {
         return INSTANCE;
     }
 
-    // ==================== 分类表操作（规范后） ====================
-    /** 添加分类 */
+    // ==================== 分类表操作 ====================
+
     public long addCategory(Category category) {
         long currentTime = System.currentTimeMillis();
         category.setCreateTime(currentTime);
@@ -48,120 +45,120 @@ public class DatabaseManager {
         return db.categoryDao().insertCategory(category);
     }
 
-    /** 更新分类 */
     public int updateCategory(Category category) {
         category.setUpdateTime(System.currentTimeMillis());
         return db.categoryDao().updateCategory(category);
     }
 
-    /** 删除分类（实体类方式） */
     public int deleteCategory(Category category) {
         return db.categoryDao().deleteCategory(category);
     }
 
-
-    /** 根据ID查询分类 */
-    public Category getCategoryById(long categoryId) {
-        return db.categoryDao().getCategoryById(categoryId);
-    }
-
-    /** 查询所有顶级父分类 */
-    public List<Category> listTopLevelParentCategories() {
-        return db.categoryDao().listTopLevelParentCategories();
-    }
-
-    /** 根据父分类ID查询子分类列表 */
-    public List<Category> listChildCategoriesByParentId(long parentCategoryId) {
-        return db.categoryDao().listChildCategoriesByParentId(parentCategoryId);
-    }
-
-    /** 查询所有分类 */
-    public List<Category> listAllCategories() {
-        return db.categoryDao().listAllCategories();
-    }
-
-    /** 模糊搜索分类（按名称） */
-    public List<Category> searchCategoriesByKeyword(String keyword) {
-        return db.categoryDao().searchCategoriesByKeyword(keyword);
-    }
-
-    /** 根据名称+父分类ID查询分类（导入去重） */
-    public List<Category> getCategoriesByCategoryNameAndParentId(String categoryName, long parentCategoryId) {
-        return db.categoryDao().getCategoriesByCategoryNameAndParentId(categoryName, parentCategoryId);
-    }
-
-    /** 统计父分类关联的有效物品数量 */
-    public int countItemsByParentCategoryId(long categoryId) {
-        return db.categoryDao().countItemsByParentCategoryId(categoryId);
-    }
-
-    /** 统计子分类关联的有效物品数量 */
-    public int countItemsByChildCategoryId(long categoryId) {
-        return db.categoryDao().countItemsByChildCategoryId(categoryId);
-    }
-
-    /** 查询指定父分类下的子分类数量 */
-    public int countChildCategoriesByParentId(long parentCategoryId) {
-        return db.categoryDao().countChildCategoriesByParentId(parentCategoryId);
-    }
-
-    /**
-     * 获取分类关联的物品数量
-     */
-    public int getRelatedItemCount(long categoryId) {
-        return db.categoryDao().getRelatedItemCount(categoryId);
-    }
-
-
-    // 清空子分类关联：仅清空item的childCategoryId，保留parentCategoryId（解决问题1）
-    public void clearItemCategoryByChildId(long childId) {
-        db.categoryDao().clearItemChildCategoryId(childId);
-    }
-
-    // 清空父分类关联：同时清空item的parent和childCategoryId（父分类删除专用）
-    public void clearItemCategoryByParentId(long parentId) {
-        db.categoryDao().clearItemParentCategoryId(parentId);
-    }
-
-
-    /**
-     * 根据ID删除分类
-     */
     public int deleteCategoryById(long categoryId) {
         return db.categoryDao().deleteCategoryById(categoryId);
     }
 
-    /**
-     * 统计父分类下所有关联物品（父分类直接关联 + 所有子分类关联）
-     * 修复：物品计数错误问题
-     */
+    public Category getCategoryById(long categoryId) {
+        return db.categoryDao().getCategoryById(categoryId);
+    }
+
+    public List<Category> listTopLevelParentCategories() {
+        return db.categoryDao().listTopLevelParentCategories();
+    }
+
+    public List<Category> listChildCategoriesByParentId(long parentCategoryId) {
+        return db.categoryDao().listChildCategoriesByParentId(parentCategoryId);
+    }
+
+    public List<Category> listAllCategories() {
+        return db.categoryDao().listAllCategories();
+    }
+
+    public List<Category> searchCategoriesByKeyword(String keyword) {
+        return db.categoryDao().searchCategoriesByKeyword(keyword);
+    }
+
+    public List<Category> getCategoriesByCategoryNameAndParentId(String categoryName, long parentCategoryId) {
+        return db.categoryDao().getCategoriesByCategoryNameAndParentId(categoryName, parentCategoryId);
+    }
+
+    public int countItemsByParentCategoryId(long categoryId) {
+        return db.categoryDao().countItemsByParentCategoryId(categoryId);
+    }
+
+    public int countItemsByChildCategoryId(long categoryId) {
+        return db.categoryDao().countItemsByChildCategoryId(categoryId);
+    }
+
+    public int countChildCategoriesByParentId(long parentCategoryId) {
+        return db.categoryDao().countChildCategoriesByParentId(parentCategoryId);
+    }
+
+    public int getRelatedItemCount(long categoryId) {
+        return db.categoryDao().getRelatedItemCount(categoryId);
+    }
+
     public int countAllItemsByParentCategoryId(long parentId) {
-        // 1. 父分类直接关联的物品数
         int parentItemCount = db.categoryDao().countItemsByParentCategoryId(parentId);
-        // 2. 所有子分类关联的物品数
         List<Category> childCategories = listChildCategoriesByParentId(parentId);
         int childItemTotal = 0;
         for (Category child : childCategories) {
             childItemTotal += db.categoryDao().countItemsByChildCategoryId(child.getId());
         }
-        // 总物品数 = 父直接关联 + 子分类关联（修复计数错误）
         return parentItemCount + childItemTotal;
     }
 
-    // 在DatabaseManager中添加事务封装（示例）
+    public void clearItemChildCategoryId(long childId) {
+        db.categoryDao().clearItemChildCategoryId(childId);
+    }
+
+    public void clearItemParentCategoryId(long parentId) {
+        db.categoryDao().clearItemParentCategoryId(parentId);
+    }
+
     public void deleteParentCategoryWithTransaction(long parentId) {
         db.runInTransaction(() -> {
-            clearItemCategoryByParentId(parentId);
+            clearItemParentCategoryId(parentId);
             List<Category> childCategories = listChildCategoriesByParentId(parentId);
             for (Category child : childCategories) {
-                clearItemCategoryByChildId(child.getId());
+                clearItemChildCategoryId(child.getId());
                 deleteCategoryById(child.getId());
             }
             deleteCategoryById(parentId);
         });
     }
 
+
+    /**
+     * 校验分类名称是否重复
+     * @param categoryName 分类名称
+     * @param parentId 父分类ID（0=父分类，>0=子分类）
+     * @param excludeId 排除的分类ID（编辑时排除自身）
+     * @return true=重复，false=不重复
+     */
+    public boolean checkCategoryNameDuplicate(String categoryName, long parentId, long excludeId) {
+        if (parentId == 0) {
+            // 校验父分类名称（parentId=0且名称相同，排除自身）
+            return db.categoryDao().countParentCategoryWithName(categoryName, excludeId) > 0;
+        } else {
+            // 校验子分类名称（同一父分类下名称相同，排除自身）
+            return db.categoryDao().countChildCategoryWithName(categoryName, parentId, excludeId) > 0;
+        }
+    }
+
+    /**
+     * 清空指定父分类下所有物品的父/子分类ID
+     * @param parentCategoryId 父分类ID
+     */
+    public void clearItemParentAndChildCategoryId(long parentCategoryId) {
+        // 需实现Room DAO方法：UPDATE item SET parentCategoryId=0, childCategoryId=0 WHERE parentCategoryId=?
+        db.itemDao().clearParentAndChildCategory(parentCategoryId);
+    }
+
+
+
     // ==================== 位置表操作 ====================
+
     public long addLocation(Location location) {
         long currentTime = System.currentTimeMillis();
         location.setCreateTime(currentTime);
@@ -182,7 +179,6 @@ public class DatabaseManager {
         return db.locationDao().getLocationById(id);
     }
 
-    // 精确查询位置（按名称，供导入去重使用）
     public List<Location> getLocationByName(String name) {
         return db.locationDao().getLocationByName(name);
     }
@@ -191,7 +187,39 @@ public class DatabaseManager {
         return db.locationDao().getAllLocations();
     }
 
+    /**
+     * 检查位置名称是否重复（排除编辑中的ID）
+     * @param name 位置名称
+     * @param excludeId 排除的ID（编辑时传自身ID，新增时传0）
+     * @return true=重复，false=不重复
+     */
+    public boolean checkLocationNameDuplicate(String name, long excludeId) {
+        return db.locationDao().isNameExists(name, excludeId);
+    }
+
+    // 补充：添加根据ID删除位置的封装（原ViewModel中删除逻辑也可统一封装）
+    public int deleteLocationById(long locationId) {
+        return db.locationDao().deleteLocationById(locationId);
+    }
+
+    /**
+     * 获取位置关联的物品数量
+     * @param locationId 位置ID
+     * @return 关联物品数量
+     */
+    public int getLocationRelatedItemCount(long locationId) {
+        return db.locationDao().getRelatedItemCount(locationId);
+    }
+
+    public void clearItemLocationByLocationId(long locationId) {
+        // 调用Dao层方法（需在子线程执行，此处已由ViewModel的ExecutorService保证）
+        db.itemDao().clearItemLocationByLocationId(locationId);
+    }
+
+
+
     // ==================== 物品表操作 ====================
+
     public long addItem(Item item) {
         long currentTime = System.currentTimeMillis();
         item.setCreateTime(currentTime);
@@ -212,10 +240,10 @@ public class DatabaseManager {
         return db.itemDao().getItemById(id);
     }
 
-    // 新增：根据UUID查询物品（供导入去重使用）
     public Item getItemByUuid(String uuid) {
         return db.itemDao().getItemByUuid(uuid);
     }
+
     public LiveData<List<Item>> getAllItems() {
         return db.itemDao().getAllItems();
     }
@@ -228,9 +256,7 @@ public class DatabaseManager {
         return db.itemDao().searchExpiredItems(keyword, currentTime, startDate, endDate, isDeleted);
     }
 
-    // 重载：通过itemId标记物品为删除（逻辑删除）
     public void markItemAsDeleted(Long itemId) {
-        // 先通过ID查询物品，获取UUID
         Item item = db.itemDao().getItemById(itemId);
         if (item != null) {
             long currentTime = System.currentTimeMillis();
@@ -238,11 +264,36 @@ public class DatabaseManager {
         }
     }
 
+    public int restoreItemById(long itemId) {
+        Item item = db.itemDao().getItemById(itemId);
+        if (item != null) {
+            item.setIsDeleted(0);
+            item.setUpdateTime(System.currentTimeMillis());
+            return db.itemDao().updateItem(item);
+        }
+        return 0;
+    }
+
+    public void restoreItemsByIds(List<Long> itemIds) {
+        for (long itemId : itemIds) {
+            restoreItemById(itemId);
+        }
+    }
+
+    public int deleteItemById(long itemId) {
+        return db.itemDao().deleteItemById(itemId);
+    }
+
+    public int deleteItemsByIds(List<Long> itemIds) {
+        return db.itemDao().deleteItemsByIds(itemIds);
+    }
+
+    public List<Item> getDeletedItems() {
+        return db.itemDao().getDeletedItems();
+    }
+
     // ==================== 复杂查询方法 ====================
 
-    /**
-     * 多条件查询物品（使用名称直接查询）
-     */
     public LiveData<List<ItemWithName>> queryItemsWithName(
             String keyword,
             String parentCategoryName,
@@ -257,9 +308,7 @@ public class DatabaseManager {
                 quantityMin, quantityMax, expireStart, expireEnd);
     }
 
-    /**
-     * 多条件查询物品（使用ID查询）
-     */
+
     public LiveData<List<Item>> queryItemsByCondition(
             String keyword,
             Long parentCategoryId,
@@ -269,16 +318,24 @@ public class DatabaseManager {
             Integer quantityMax,
             Long expireStart,
             Long expireEnd) {
+
+        // 将单个Long转换为List<Long>
+        List<Long> parentIds = parentCategoryId != null ?
+                Arrays.asList(parentCategoryId) : null;
+        List<Long> childIds = childCategoryId != null ?
+                Arrays.asList(childCategoryId) : null;
+        List<Long> locationIds = locationId != null ?
+                Arrays.asList(locationId) : null;
+
         return db.itemDao().queryItemsByCondition(
-                keyword, parentCategoryId, childCategoryId, locationId,
+                keyword,
+                parentIds,       // 现在传List
+                childIds,        // 现在传List
+                locationIds,     // 现在传List
                 quantityMin, quantityMax, expireStart, expireEnd);
     }
 
-    /**
-     * 根据FilterCondition查询物品（推荐使用）
-     */
     public LiveData<List<ItemWithName>> queryItemsByFilter(FilterCondition filter) {
-        // 处理空值
         String keyword = (filter.getSearchKeyword() == null || filter.getSearchKeyword().isEmpty())
                 ? null : filter.getSearchKeyword();
         String parentCategoryName = (filter.getParentCategory() == null || filter.getParentCategory().isEmpty())
@@ -288,7 +345,6 @@ public class DatabaseManager {
         String locationName = (filter.getLocation() == null || filter.getLocation().isEmpty())
                 ? null : filter.getLocation();
 
-        // 将Date转换为时间戳
         Long expireStart = filter.getExpireStart() != null ? filter.getExpireStart().getTime() : null;
         Long expireEnd = filter.getExpireEnd() != null ? filter.getExpireEnd().getTime() : null;
 
@@ -299,19 +355,96 @@ public class DatabaseManager {
     }
 
     // ==================== 回收站表操作 ====================
+
+    public int restoreItemsWithTransaction(List<Long> recycleIds, List<Long> itemIds) {
+        if (recycleIds == null || itemIds == null || recycleIds.isEmpty() || itemIds.isEmpty()
+                || recycleIds.size() != itemIds.size()) {
+            android.util.Log.e("DatabaseManager", "批量还原参数错误：ID列表为空或长度不匹配");
+            return 0;
+        }
+
+        AtomicInteger successCount = new AtomicInteger(0);
+        try {
+            db.runInTransaction(() -> {
+                for (int i = 0; i < recycleIds.size(); i++) {
+                    long recycleId = recycleIds.get(i);
+                    long itemId = itemIds.get(i);
+                    try {
+                        Recycle recycle = getRecycleById(recycleId);
+                        if (recycle == null || recycle.getItemId() != itemId) {
+                            android.util.Log.w("DatabaseManager", "回收站记录ID：" + recycleId + " 与物品ID：" + itemId + " 不匹配，跳过");
+                            continue;
+                        }
+                        Item item = getItemById(itemId);
+                        if (item == null || item.getIsDeleted() != 1) {
+                            android.util.Log.w("DatabaseManager", "物品ID：" + itemId + " 不存在或未删除，跳过");
+                            continue;
+                        }
+                        int restoreResult = restoreItemById(itemId);
+                        if (restoreResult <= 0) {
+                            android.util.Log.w("DatabaseManager", "物品ID：" + itemId + " 恢复失败，跳过");
+                            continue;
+                        }
+                        int deleteResult = deleteRecycleItemById(recycleId);
+                        if (deleteResult <= 0) {
+                            android.util.Log.w("DatabaseManager", "回收站记录ID：" + recycleId + " 删除失败，跳过");
+                            item.setIsDeleted(1);
+                            updateItem(item);
+                            continue;
+                        }
+                        successCount.incrementAndGet();
+                    } catch (Exception e) {
+                        android.util.Log.e("DatabaseManager", "处理回收站ID：" + recycleId + " 失败：", e);
+                        continue;
+                    }
+                }
+            });
+        } catch (Exception e) {
+            android.util.Log.e("DatabaseManager", "批量还原事务执行异常：", e);
+        }
+        return successCount.get();
+    }
+
+    public LiveData<List<Recycle>> getAllRecycleItemsSyncLive() {
+        return db.recycleDao().getAllRecycleItemsSyncLive();
+    }
+
+    public Recycle getRecycleById(long id) {
+        return db.recycleDao().getRecycleById(id);
+    }
+
+    public Recycle getRecycleByItemId(long itemId) {
+        return db.recycleDao().getRecycleByItemId(itemId);
+    }
+
     public long addRecycle(Recycle recycle) {
+        if (recycle == null) {
+            return -1;
+        }
+        if (recycle.getItemId() <= 0) {
+            return -1;
+        }
+        if (recycle.getItemName() == null || recycle.getItemName().trim().isEmpty()) {
+            return -1;
+        }
+        if (recycle.getDeleteTime() <= 0) {
+            recycle.setDeleteTime(System.currentTimeMillis());
+        }
+        if (recycle.getItemUuid() == null) {
+            recycle.setItemUuid("");
+        }
         return db.recycleDao().insertRecycle(recycle);
     }
 
-    public int deleteRecycle(Recycle recycle) {
-        return db.recycleDao().deleteRecycle(recycle);
+    public List<Recycle> getAllRecycleItemsSync() {
+        return db.recycleDao().getAllRecycleItemsSync();
     }
 
-    public List<Recycle> getAllRecycles() {
-        return db.recycleDao().getAllRecycles();
+    public int deleteRecycleItemById(long recycleId) {
+        return db.recycleDao().deleteRecycleItemById(recycleId);
     }
 
-    public int deleteRecycleByItemId(long itemId) {
-        return db.recycleDao().deleteRecycleByItemId(itemId);
+    public int deleteRecycleItemsByIds(List<Long> recycleIds) {
+        return db.recycleDao().deleteRecycleItemsByIds(recycleIds);
     }
 }

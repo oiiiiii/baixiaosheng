@@ -1,100 +1,138 @@
 package com.baixiaosheng.inventory.view.adapter;
 
+import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
+import androidx.lifecycle.LifecycleOwner;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.baixiaosheng.inventory.R;
 import com.baixiaosheng.inventory.database.entity.Category;
+import com.baixiaosheng.inventory.view.activity.CategoryManageActivity;
+import com.baixiaosheng.inventory.viewmodel.CategoryManageViewModel;
+import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
 
 import java.util.List;
 
-/**
- * 分类列表适配器
- */
-public class CategoryAdapter extends RecyclerView.Adapter<CategoryAdapter.CategoryViewHolder> {
+public class CategoryAdapter extends RecyclerView.Adapter<CategoryAdapter.ParentCategoryViewHolder> {
 
-    private List<Category> mCategoryList;
-    private final OnEditClickListener mOnEditClickListener;
-    private final OnDeleteClickListener mOnDeleteClickListener;
+    private Context context;
+    private List<Category> parentCategories; // 仅存储父分类（parentId=0）
+    private CategoryManageViewModel viewModel;
+    private LifecycleOwner lifecycleOwner;
 
-    // 编辑点击回调
-    public interface OnEditClickListener {
-        void onEditClick(Category category);
+    public CategoryAdapter(Context context, CategoryManageViewModel viewModel) {
+        this.context = context;
+        this.viewModel = viewModel;
+        this.lifecycleOwner = (LifecycleOwner) context;
     }
 
-    // 删除点击回调
-    public interface OnDeleteClickListener {
-        void onDeleteClick(Category category);
+    public void setParentCategories(List<Category> parentCategories) {
+        this.parentCategories = parentCategories;
+        notifyDataSetChanged();
     }
 
-    public CategoryAdapter(List<Category> categoryList, OnEditClickListener onEditClickListener, OnDeleteClickListener onDeleteClickListener) {
-        this.mCategoryList = categoryList;
-        this.mOnEditClickListener = onEditClickListener;
-        this.mOnDeleteClickListener = onDeleteClickListener;
+    // 仅返回父分类数量（移除添加按钮Item）
+    @Override
+    public int getItemCount() {
+        return parentCategories == null ? 0 : parentCategories.size();
     }
 
     @NonNull
     @Override
-    public CategoryViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_category, parent, false);
-        return new CategoryViewHolder(view);
+    public ParentCategoryViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        LayoutInflater inflater = LayoutInflater.from(context);
+        View view = inflater.inflate(R.layout.item_category, parent, false);
+        return new ParentCategoryViewHolder(view);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull CategoryViewHolder holder, int position) {
-        Category category = mCategoryList.get(position);
-        holder.tvCategoryName.setText(category.getCategoryName());
-        // 显示父分类名称（无则显示"无"）
-        holder.tvParentCategory.setText(category.getParentCategoryId() == 0 ? "无" : getParentName(category.getParentCategoryId()));
-        // 编辑按钮点击
-        holder.btnEditCategory.setOnClickListener(v -> mOnEditClickListener.onEditClick(category));
-        // 删除按钮点击
-        holder.btnDeleteCategory.setOnClickListener(v -> mOnDeleteClickListener.onDeleteClick(category));
-    }
+    public void onBindViewHolder(@NonNull ParentCategoryViewHolder holder, int position) {
+        Category parentCategory = parentCategories.get(position);
+        if (parentCategory == null) return;
 
-    @Override
-    public int getItemCount() {
-        return mCategoryList.size();
-    }
+        // 显示父分类名称
+        holder.tvName.setText(String.format("分类：%s", parentCategory.getCategoryName()));
 
-    /**
-     * 更新数据
-     */
-    public void updateData(List<Category> categoryList) {
-        this.mCategoryList = categoryList;
-        notifyDataSetChanged();
-    }
+        // 加载子分类Chip
+        holder.cgChildCategories.removeAllViews();
+        viewModel.getChildCategories(parentCategory.getId()).observe(lifecycleOwner, childCategories -> {
+            holder.cgChildCategories.removeAllViews();
+            for (Category child : childCategories) {
+                Chip chip = new Chip(context);
+                chip.setText(child.getCategoryName());
+                chip.setChipBackgroundColorResource(R.color.chip_bg);
+                chip.setTextColor(context.getResources().getColor(R.color.white));
 
-    /**
-     * 根据父分类ID获取父分类名称
-     */
-    private String getParentName(long parentId) {
-        for (Category category : mCategoryList) {
-            if (category.getId() == parentId) {
-                return category.getCategoryName();
+                // 子分类Chip点击（编辑）
+                chip.setOnClickListener(v -> {
+                    ((CategoryManageActivity) context).showAddCategoryDialog(child, parentCategory.getId());
+                });
+
+                // 子分类Chip长按（删除）
+                chip.setOnLongClickListener(v -> {
+                    // 先查询子分类关联的物品数量
+                    viewModel.checkCategoryHasRelatedItems(child.getId()).observe(lifecycleOwner, hasItems -> {
+                        AlertDialog.Builder builder = new AlertDialog.Builder(context)
+                                .setTitle(R.string.delete_category)
+                                .setPositiveButton(R.string.confirm, (dialog, which) -> {
+                                    // 执行子分类删除（内部已处理清空物品关联）
+                                    viewModel.deleteCategory(child);
+                                    viewModel.loadAllCategories();
+                                })
+                                .setNegativeButton(R.string.cancel, (dialog, which) -> dialog.dismiss());
+
+                        // 根据是否有物品调整提示语
+                        if (hasItems) {
+                            builder.setMessage(context.getString(R.string.delete_child_category_with_items_tip));
+                        } else {
+                            builder.setMessage(String.format(context.getString(R.string.delete_category_confirm), child.getCategoryName()));
+                        }
+                        builder.show();
+                    });
+                    return true;
+                });
+
+                holder.cgChildCategories.addView(chip);
             }
-        }
-        return "未知";
+        });
+
+        // 父分类Item单击事件：编辑当前父分类名称
+        holder.itemView.setOnClickListener(v -> {
+            ((CategoryManageActivity) context).showAddCategoryDialog(parentCategory, 0);
+        });
+
+        // 父分类Item长按事件：删除当前父分类（弹窗确认）
+        holder.itemView.setOnLongClickListener(v -> {
+            ((CategoryManageActivity) context).showDeleteConfirmDialog(parentCategory);
+            return true;
+        });
+
+        // ChipGroup末尾的添加子分类按钮点击事件
+        holder.btnAddChildInChip.setOnClickListener(v -> {
+            ((CategoryManageActivity) context).showAddCategoryDialog(null, parentCategory.getId());
+        });
     }
 
-    static class CategoryViewHolder extends RecyclerView.ViewHolder {
-        TextView tvCategoryName;
-        TextView tvParentCategory;
-        Button btnEditCategory;
-        Button btnDeleteCategory;
+    // 仅保留父分类ViewHolder（移除AddParentViewHolder）
+    static class ParentCategoryViewHolder extends RecyclerView.ViewHolder {
+        TextView tvName;
+        ChipGroup cgChildCategories;
+        ImageButton btnAddChildInChip;
 
-        public CategoryViewHolder(@NonNull View itemView) {
+        public ParentCategoryViewHolder(@NonNull View itemView) {
             super(itemView);
-            tvCategoryName = itemView.findViewById(R.id.tv_category_name);
-            tvParentCategory = itemView.findViewById(R.id.tv_parent_category);
-            btnEditCategory = itemView.findViewById(R.id.btn_edit_category);
-            btnDeleteCategory = itemView.findViewById(R.id.btn_delete_category);
+            tvName = itemView.findViewById(R.id.tv_name);
+            cgChildCategories = itemView.findViewById(R.id.chip_group_subcategory);
+            btnAddChildInChip = itemView.findViewById(R.id.btn_add_child_in_chip);
         }
     }
 }

@@ -3,7 +3,6 @@ package com.baixiaosheng.inventory.view.adapter;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -20,23 +19,25 @@ import java.util.List;
 public class LocationAdapter extends RecyclerView.Adapter<LocationAdapter.LocationViewHolder> {
 
     private List<Location> mLocationList;
-    private final OnEditClickListener mOnEditClickListener;
-    private final OnDeleteClickListener mOnDeleteClickListener;
+    private final OnItemClickListener mOnItemClickListener;
+    private final OnItemLongClickListener mOnItemLongClickListener;
 
-    // 编辑点击回调
-    public interface OnEditClickListener {
-        void onEditClick(Location location);
+    // 点击回调（编辑）
+    public interface OnItemClickListener {
+        void onItemClick(Location location);
     }
 
-    // 删除点击回调
-    public interface OnDeleteClickListener {
-        void onDeleteClick(Location location);
+    // 长按回调（删除）
+    public interface OnItemLongClickListener {
+        void onItemLongClick(Location location);
     }
 
-    public LocationAdapter(List<Location> locationList, OnEditClickListener onEditClickListener, OnDeleteClickListener onDeleteClickListener) {
+    public LocationAdapter(List<Location> locationList,
+                           OnItemClickListener onItemClickListener,
+                           OnItemLongClickListener onItemLongClickListener) {
         this.mLocationList = locationList;
-        this.mOnEditClickListener = onEditClickListener;
-        this.mOnDeleteClickListener = onDeleteClickListener;
+        this.mOnItemClickListener = onItemClickListener;
+        this.mOnItemLongClickListener = onItemLongClickListener;
     }
 
     @NonNull
@@ -50,10 +51,14 @@ public class LocationAdapter extends RecyclerView.Adapter<LocationAdapter.Locati
     public void onBindViewHolder(@NonNull LocationViewHolder holder, int position) {
         Location location = mLocationList.get(position);
         holder.tvLocationName.setText(location.getName());
-        // 编辑按钮点击
-        holder.btnEditLocation.setOnClickListener(v -> mOnEditClickListener.onEditClick(location));
-        // 删除按钮点击
-        holder.btnDeleteLocation.setOnClickListener(v -> mOnDeleteClickListener.onDeleteClick(location));
+
+        // 点击事件（编辑）
+        holder.itemView.setOnClickListener(v -> mOnItemClickListener.onItemClick(location));
+        // 长按事件（删除）
+        holder.itemView.setOnLongClickListener(v -> {
+            mOnItemLongClickListener.onItemLongClick(location);
+            return true; // 消费长按事件，避免触发点击
+        });
     }
 
     @Override
@@ -69,16 +74,25 @@ public class LocationAdapter extends RecyclerView.Adapter<LocationAdapter.Locati
         notifyDataSetChanged();
     }
 
+    /**
+     * 检查名称是否重复（排除编辑中的位置）
+     */
+    public boolean isNameDuplicate(String name, long excludeId) {
+        if (name == null || name.trim().isEmpty()) return false;
+        for (Location location : mLocationList) {
+            if (location.getId() != excludeId && name.trim().equals(location.getName().trim())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     static class LocationViewHolder extends RecyclerView.ViewHolder {
         TextView tvLocationName;
-        Button btnEditLocation;
-        Button btnDeleteLocation;
 
         public LocationViewHolder(@NonNull View itemView) {
             super(itemView);
             tvLocationName = itemView.findViewById(R.id.tv_location_name);
-            btnEditLocation = itemView.findViewById(R.id.btn_edit_location);
-            btnDeleteLocation = itemView.findViewById(R.id.btn_delete_location);
         }
     }
 }

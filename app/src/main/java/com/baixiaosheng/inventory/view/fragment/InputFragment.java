@@ -131,7 +131,7 @@ public class InputFragment extends Fragment {
      */
     private void observeViewModelData() {
         // 观察分类列表
-        mCategoryViewModel.getCategoryList().observe(getViewLifecycleOwner(), categories -> {
+        mCategoryViewModel.getAllCategories().observe(getViewLifecycleOwner(), categories -> {
             if (categories != null) {
                 mAllCategories = new ArrayList<>(categories);
                 // 初始化父分类Spinner

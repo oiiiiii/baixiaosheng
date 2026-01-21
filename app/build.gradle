@@ -46,6 +46,7 @@ dependencies {
 
     // Room数据库
     implementation 'androidx.room:room-runtime:2.6.1'
+    implementation libs.material
     annotationProcessor 'androidx.room:room-compiler:2.6.1'
 
     // RecyclerView

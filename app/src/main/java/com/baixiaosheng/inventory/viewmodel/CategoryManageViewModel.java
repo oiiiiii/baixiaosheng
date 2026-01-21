@@ -1,79 +1,99 @@
 package com.baixiaosheng.inventory.viewmodel;
 
 import android.app.Application;
+import android.os.AsyncTask;
 
 import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
+import com.baixiaosheng.inventory.R;
 import com.baixiaosheng.inventory.database.DatabaseManager;
 import com.baixiaosheng.inventory.database.entity.Category;
 
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
-/**
- * 分类管理ViewModel（简化删除逻辑版）
- */
 public class CategoryManageViewModel extends AndroidViewModel {
 
-    private final DatabaseManager mDbManager;
-    private final ExecutorService mExecutorService;
-    private final MutableLiveData<List<Category>> mCategoryList;
-    private final MutableLiveData<Boolean> mOperationSuccess;
-    private final MutableLiveData<String> mErrorMsg;
-    private final MutableLiveData<List<Category>> mParentCategoryListLiveData;
+    private DatabaseManager dbManager;
+    private MutableLiveData<List<Category>> parentCategories; // 仅存储父分类
+    private MutableLiveData<Boolean> operationResult;
+    private MutableLiveData<List<Category>> allCategories; //存储所有分类
+
 
     public CategoryManageViewModel(@NonNull Application application) {
         super(application);
-        mDbManager = DatabaseManager.getInstance(application.getApplicationContext());
-        mExecutorService = Executors.newSingleThreadExecutor();
-        mCategoryList = new MutableLiveData<>();
-        mOperationSuccess = new MutableLiveData<>();
-        mErrorMsg = new MutableLiveData<>();
-        mParentCategoryListLiveData = new MutableLiveData<>();
-        loadAllCategories();
-        refreshParentCategories();
+        dbManager = DatabaseManager.getInstance(application);
+        parentCategories = new MutableLiveData<>();
+        allCategories = new MutableLiveData<>();
+        operationResult = new MutableLiveData<>();
+    }
+
+    /**
+     * 获取所有父分类（parentId=0）
+     */
+    public LiveData<List<Category>> getParentCategories() {
+        return parentCategories;
+    }
+
+    /**
+     * 获取所有分类
+     */
+    public LiveData<List<Category>> getAllCategories() {
+        return allCategories;
+    }
+
+    /**
+     * 获取操作结果
+     */
+    public LiveData<Boolean> getOperationResult() {
+        return operationResult;
+    }
+
+    /**
+     * 加载所有父分类
+     */
+    public void loadParentCategories() {
+        AsyncTask.execute(() -> {
+            List<Category> parents = dbManager.listTopLevelParentCategories();
+            parentCategories.postValue(parents);
+        });
     }
 
     /**
      * 加载所有分类
      */
     public void loadAllCategories() {
-        mExecutorService.execute(() -> {
-            List<Category> categories = mDbManager.listAllCategories();
-            mCategoryList.postValue(categories);
+        AsyncTask.execute(() -> {
+            List<Category> categories = dbManager.listAllCategories();
+            allCategories.postValue(categories);
         });
     }
 
     /**
-     * 添加分类
+     * 根据父分类ID获取子分类
+     */
+    public LiveData<List<Category>> getChildCategories(long parentId) {
+        MutableLiveData<List<Category>> childCategories = new MutableLiveData<>();
+        AsyncTask.execute(() -> {
+            List<Category> list = dbManager.listChildCategoriesByParentId(parentId);
+            childCategories.postValue(list);
+        });
+        return childCategories;
+    }
+
+    /**
+     * 添加分类（支持父/子分类）
      */
     public void addCategory(Category category) {
-        mExecutorService.execute(() -> {
+        AsyncTask.execute(() -> {
             try {
-                if (category.getCategoryName() == null || category.getCategoryName().trim().isEmpty()) {
-                    mErrorMsg.postValue("分类名称不能为空");
-                    mOperationSuccess.postValue(false);
-                    return;
-                }
-                if (category.getParentCategoryId() != 0) {
-                    Category parent = mDbManager.getCategoryById(category.getParentCategoryId());
-                    if (parent == null) {
-                        mErrorMsg.postValue("父分类不存在");
-                        mOperationSuccess.postValue(false);
-                        return;
-                    }
-                }
-                mDbManager.addCategory(category);
-                mOperationSuccess.postValue(true);
-                loadAllCategories();
-                refreshParentCategories();
+                long id = dbManager.addCategory(category);
+                operationResult.postValue(id > 0);
             } catch (Exception e) {
-                mErrorMsg.postValue("添加分类失败：" + e.getMessage());
-                mOperationSuccess.postValue(false);
+                e.printStackTrace();
+                operationResult.postValue(false);
             }
         });
     }
@@ -82,96 +102,98 @@ public class CategoryManageViewModel extends AndroidViewModel {
      * 更新分类
      */
     public void updateCategory(Category category) {
-        mExecutorService.execute(() -> {
+        AsyncTask.execute(() -> {
             try {
-                if (category.getCategoryName() == null || category.getCategoryName().trim().isEmpty()) {
-                    mErrorMsg.postValue("分类名称不能为空");
-                    mOperationSuccess.postValue(false);
-                    return;
-                }
-                mDbManager.updateCategory(category);
-                mOperationSuccess.postValue(true);
-                loadAllCategories();
-                refreshParentCategories();
+                int rows = dbManager.updateCategory(category);
+                operationResult.postValue(rows > 0);
             } catch (Exception e) {
-                mErrorMsg.postValue("更新分类失败：" + e.getMessage());
-                mOperationSuccess.postValue(false);
+                e.printStackTrace();
+                operationResult.postValue(false);
             }
         });
     }
 
-    /**
-     * 直接删除分类（核心简化）
-     */
-    public void deleteCategory(long categoryId) {
-        mExecutorService.execute(() -> {
-            try {
-                Category targetCategory = mDbManager.getCategoryById(categoryId);
-                if (targetCategory == null) {
-                    mErrorMsg.postValue("分类不存在，无法删除");
-                    mOperationSuccess.postValue(false);
-                    return;
-                }
 
-                // 处理分类关联的物品：清空物品的分类关联
-                if (targetCategory.getParentCategoryId() == 0) {
-                    // 父分类：清空物品父分类ID + 所有子分类关联的物品子分类ID
-                    mDbManager.clearItemCategoryByParentId(categoryId);
-                    List<Category> childCategories = mDbManager.listChildCategoriesByParentId(categoryId);
-                    for (Category child : childCategories) {
-                        mDbManager.clearItemCategoryByChildId(child.getId());
-                        mDbManager.deleteCategoryById(child.getId());
-                    }
+
+    /**
+     * 删除分类（优化逻辑）
+     */
+    public void deleteCategory(Category category) {
+        AsyncTask.execute(() -> {
+            try {
+                if (category.getParentCategoryId() == 0) {
+                    // 父分类：级联删除子分类 + 清空所有关联物品的分类属性
+                    dbManager.clearItemParentAndChildCategoryId(category.getId());
+                    dbManager.deleteParentCategoryWithTransaction(category.getId());
                 } else {
-                    // 子分类：仅清空物品子分类ID
-                    mDbManager.clearItemCategoryByChildId(categoryId);
+                    // 子分类：清空关联物品的子分类属性 + 删除自身
+                    dbManager.clearItemChildCategoryId(category.getId());
+                    dbManager.deleteCategory(category);
                 }
-
-                // 删除目标分类
-                mDbManager.deleteCategoryById(categoryId);
-                mOperationSuccess.postValue(true);
-                loadAllCategories();
-                refreshParentCategories();
+                operationResult.postValue(true);
             } catch (Exception e) {
-                mErrorMsg.postValue("删除分类失败：" + e.getMessage());
-                mOperationSuccess.postValue(false);
+                e.printStackTrace();
+                operationResult.postValue(false);
             }
         });
     }
 
     /**
-     * 获取所有父分类（用于Spinner选择）
+     * 校验分类名称是否重复
+     * @param categoryName 待校验的分类名称
+     * @param parentId 父分类ID（0=校验父分类名称，>0=校验该父分类下的子分类名称）
+     * @param excludeId 排除的分类ID（编辑时排除自身，新增时传-1）
+     * @return true=名称重复，false=名称可用
      */
-    public LiveData<List<Category>> getParentCategories() {
-        return mParentCategoryListLiveData;
+    public LiveData<Boolean> checkCategoryNameDuplicate(String categoryName, long parentId, long excludeId) {
+        MutableLiveData<Boolean> isDuplicate = new MutableLiveData<>();
+        AsyncTask.execute(() -> {
+            boolean duplicate = dbManager.checkCategoryNameDuplicate(categoryName, parentId, excludeId);
+            isDuplicate.postValue(duplicate);
+        });
+        return isDuplicate;
     }
 
     /**
-     * 刷新父分类列表
+     * 检查分类是否有关联物品
      */
-    public void refreshParentCategories() {
-        mExecutorService.execute(() -> {
-            List<Category> parentCategories = mDbManager.listTopLevelParentCategories();
-            mParentCategoryListLiveData.postValue(parentCategories);
+    public LiveData<Boolean> checkCategoryHasRelatedItems(long categoryId) {
+        MutableLiveData<Boolean> hasItems = new MutableLiveData<>();
+        AsyncTask.execute(() -> {
+            int count = dbManager.getRelatedItemCount(categoryId);
+            hasItems.postValue(count > 0);
         });
+        return hasItems;
     }
 
-    // 对外暴露LiveData
-    public LiveData<List<Category>> getCategoryList() {
-        return mCategoryList;
+    /**
+     * 获取父分类删除提示语
+     */
+    public LiveData<String> checkCategoryDeleteTip(long parentId) {
+        MutableLiveData<String> tip = new MutableLiveData<>();
+        AsyncTask.execute(() -> {
+            int childCount = dbManager.countChildCategoriesByParentId(parentId);
+            int itemCount = dbManager.getRelatedItemCount(parentId);
+            if (childCount > 0 || itemCount > 0) {
+                tip.postValue(getApplication().getString(R.string.delete_parent_category_with_child_or_items_tip));
+            } else {
+                tip.postValue(String.format(getApplication().getString(R.string.delete_category_confirm),
+                        dbManager.getCategoryById(parentId).getCategoryName()));
+            }
+        });
+        return tip;
     }
 
-    public LiveData<Boolean> getOperationSuccess() {
-        return mOperationSuccess;
-    }
-
-    public LiveData<String> getErrorMsg() {
-        return mErrorMsg;
-    }
-
-    @Override
-    protected void onCleared() {
-        super.onCleared();
-        mExecutorService.shutdown();
+    /**
+     * 检查分类是否可删除（仅校验子分类：父分类删除时会级联删子分类，子分类无此限制）
+     */
+    public LiveData<Boolean> checkCategoryCanDelete(long categoryId) {
+        MutableLiveData<Boolean> canDelete = new MutableLiveData<>();
+        AsyncTask.execute(() -> {
+            int childCount = dbManager.countChildCategoriesByParentId(categoryId);
+            // 移除物品数量校验：仅父分类需校验子分类（级联删除），子分类无限制
+            canDelete.postValue(childCount == 0 || dbManager.getCategoryById(categoryId).getParentCategoryId() != 0);
+        });
+        return canDelete;
     }
 }

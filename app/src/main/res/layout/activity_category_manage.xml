@@ -4,47 +4,28 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <!-- 顶部操作栏 -->
-    <LinearLayout
+    <!-- 页面顶部操作提示 -->
+    <TextView
         android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:gravity="center_vertical"
-        android:paddingHorizontal="16dp"
-        android:background="@color/white">
-
-        <EditText
-            android:id="@+id/et_category_name"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:hint="输入分类名称"
-            android:singleLine="true"
-            android:textSize="16sp" />
-
-        <Spinner
-            android:id="@+id/sp_parent_category"
-            android:layout_width="120dp"
-            android:layout_height="wrap_content"
-            android:layout_marginLeft="10dp"
-            android:hint="父分类" />
-
-        <Button
-            android:id="@+id/btn_add_category"
-            android:layout_width="wrap_content"
-            android:layout_height="48dp"
-            android:background="@drawable/btn_default_bg"
-            android:text="添加"
-            android:minWidth="120dp"
+        android:layout_height="wrap_content"
+        android:text="操作提示：点击分类编辑名称 | 长按分类删除"
+        android:textSize="12sp"
+        android:textColor="@android:color/darker_gray"
         android:padding="8dp"/>
 
-    </LinearLayout>
-
-    <!-- 分类列表 -->
+    <!-- 分类列表（占满剩余空间） -->
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_category_list"
+        android:id="@+id/rv_categories"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@color/white"
-        android:padding="10dp" />
+        android:layout_height="0dp"
+        android:layout_weight="1"/>
+
+    <!-- 底部添加父分类按钮（对齐location页面样式） -->
+    <Button
+        android:id="@+id/btn_add_new_parent_category"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:text="添加新分类"
+        android:layout_margin="12dp"/>
 
 </LinearLayout>

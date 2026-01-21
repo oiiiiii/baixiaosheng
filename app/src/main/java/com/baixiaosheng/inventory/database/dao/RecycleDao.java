@@ -1,5 +1,6 @@
 package com.baixiaosheng.inventory.database.dao;
 
+import androidx.lifecycle.LiveData;
 import androidx.room.Dao;
 import androidx.room.Delete;
 import androidx.room.Insert;
@@ -31,32 +32,31 @@ public interface RecycleDao {
     @Delete
     int deleteRecycle(Recycle recycle);
 
-    // 根据ID查询回收站记录
+    // 根据ID查询回收站记录（同步，仅用于后台操作）
     @Query("SELECT * FROM recycle WHERE id = :id")
     Recycle getRecycleById(long id);
 
-    // 根据物品ID查询回收站记录
+    // 根据物品ID查询回收站记录（同步，仅用于后台操作）
     @Query("SELECT * FROM recycle WHERE itemId = :itemId")
     Recycle getRecycleByItemId(long itemId);
 
-    // 查询所有回收站记录
-    @Query("SELECT * FROM recycle ORDER BY deleteTime DESC")
-    List<Recycle> getAllRecycles();
+    // 【核心修复1】获取所有有效回收站物品（关联Item表，确保isDeleted=1）
+    // 返回LiveData，支持数据监听和UI自动刷新
+    @Query("SELECT r.* FROM recycle r " +
+            "JOIN item i ON r.itemId = i.id " +
+            "WHERE i.isDeleted = 1 " +  // 仅显示未恢复的物品
+            "ORDER BY r.deleteTime DESC")
+    LiveData<List<Recycle>> getAllRecycleItemsSyncLive();
 
-    // 删除回收站中指定物品ID的记录（还原物品时调用）
-    @Query("DELETE FROM recycle WHERE itemId = :itemId")
-    int deleteRecycleByItemId(long itemId);
-
-    //阶段7新添加的，有可能不对
-    // 获取所有回收站物品
+    // 保留同步查询方法（用于后台批量操作，非UI展示）
     @Query("SELECT * FROM recycle ORDER BY deleteTime DESC")
-    List<Recycle> getAllRecycleItems();
+    List<Recycle> getAllRecycleItemsSync();
 
     // 根据ID删除回收站记录
     @Query("DELETE FROM recycle WHERE id = :recycleId")
-    void deleteRecycleItemById(long recycleId);
+    int deleteRecycleItemById(long recycleId);
 
     // 批量删除回收站记录
     @Query("DELETE FROM recycle WHERE id IN (:recycleIds)")
-    void deleteRecycleItemsByIds(List<Long> recycleIds);
+    int deleteRecycleItemsByIds(List<Long> recycleIds);
 }

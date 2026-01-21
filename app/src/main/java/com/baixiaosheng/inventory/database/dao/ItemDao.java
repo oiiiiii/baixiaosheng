@@ -33,8 +33,18 @@ public interface ItemDao {
     LiveData<List<Item>> searchItem(String keyword);
 
     // 新增：按过期时间范围筛选（补充isDeleted过滤）
-    @Query("SELECT * FROM item WHERE isDeleted = 0 AND (validTime BETWEEN :startDate AND :endDate OR (validTime <= :startDate AND :endDate IS NULL) OR (validTime >= :endDate AND :startDate IS NULL)) ORDER BY validTime ASC")
+    // 简化 filterItemByExpireTime
+    @Query("SELECT * FROM item WHERE isDeleted = 0 " +
+            "AND (:startDate IS NULL OR validTime >= :startDate) " +
+            "AND (:endDate IS NULL OR validTime <= :endDate) " +
+            "ORDER BY validTime ASC")
     LiveData<List<Item>> filterItemByExpireTime(Long startDate, Long endDate);
+
+    // 添加获取回收站总数的方法
+    @Query("SELECT COUNT(*) FROM item WHERE isDeleted = 1 " +
+            "AND (:keyword IS NULL OR name LIKE '%' || :keyword || '%')")
+    LiveData<Integer> getRecycleItemsCount(String keyword);
+
 
     // 新增：模糊搜索+过期时间筛选组合查询（补充isDeleted过滤）
     @Query("SELECT * FROM item WHERE isDeleted = 0 AND (name LIKE '%' || :keyword || '%' OR remark LIKE '%' || :keyword || '%') AND (validTime BETWEEN :startDate AND :endDate OR (validTime <= :startDate AND :endDate IS NULL) OR (validTime >= :endDate AND :startDate IS NULL)) ORDER BY validTime ASC")
@@ -56,9 +66,9 @@ public interface ItemDao {
             "AND (:expireEnd IS NULL OR validTime <= :expireEnd)")
     LiveData<List<Item>> queryItemsByCondition(
             String keyword,
-            Long parentCategoryIds,
-            Long childCategoryIds,
-            Long locationIds,
+            List<Long> parentCategoryIds,    // ← 改为 List
+            List<Long> childCategoryIds,     // ← 改为 List
+            List<Long> locationIds,          // ← 改为 List
             Integer quantityMin,
             Integer quantityMax,
             Long expireStart,
@@ -109,10 +119,14 @@ public interface ItemDao {
 
     // 注意：以下两个接口为「物理删除」，仅回收站页面永久删除使用
     @Query("DELETE FROM item WHERE id = :itemId")
-    void deleteItemById(long itemId);
+    int deleteItemById(long itemId);
 
     @Query("DELETE FROM item WHERE id IN (:itemIds)")
-    void deleteItemsByIds(List<Long> itemIds);
+    int deleteItemsByIds(List<Long> itemIds);
+
+    @Query("SELECT * FROM item WHERE isDeleted = 1")
+    List<Item> getDeletedItems();
+
 
     // 新增：恢复回收站物品
     @Query("UPDATE item SET isDeleted = 0, updateTime = :updateTime WHERE uuid = :uuid")
@@ -144,4 +158,20 @@ public interface ItemDao {
             "AND (:keyword IS NULL OR name LIKE '%' || :keyword || '%') " +
             "ORDER BY updateTime DESC LIMIT :pageSize OFFSET :offset")
     LiveData<List<Item>> getRecycleItems(String keyword, int pageSize, int offset);
+
+
+    /**
+     * 清空指定父分类下物品的父/子分类
+     */
+    @Query("UPDATE item SET parentCategoryId=0, childCategoryId=0 WHERE parentCategoryId=:parentId")
+    void clearParentAndChildCategory(long parentId);
+
+
+
+    /**
+     * 清空指定位置下所有物品的位置属性
+     * 修正：移除对不存在的locationName字段的更新，仅清空locationId
+     */
+    @Query("UPDATE item SET locationId = NULL WHERE locationId = :locationId")
+    void clearItemLocationByLocationId(long locationId);
 }

@@ -1,6 +1,8 @@
 package com.baixiaosheng.inventory.viewmodel;
 
 import android.app.Application;
+import android.util.Log;
+
 import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
@@ -363,20 +365,35 @@ public class QueryViewModel extends AndroidViewModel {
 
 
 
+    /**
+     * 将物品标记为删除（逻辑删除，isDeleted=1），并添加到回收站
+     * @param itemId 物品ID
+     */
     public void markItemAsDeleted(long itemId) {
         executor.execute(() -> {
+            // 1. 先查询物品，避免空指针
+            Item item = databaseManager.getItemById(itemId);
+            if (item == null) {
+                // 可选：日志记录物品不存在
+                // Log.e("QueryViewModel", "标记删除失败：物品ID=" + itemId + " 不存在");
+                return;
+            }
+
+            // 2. 标记物品为删除（isDeleted=1）
             databaseManager.markItemAsDeleted(itemId);
 
-            Item item = databaseManager.getItemById(itemId);
-            if (item != null) {
-                Recycle recycle = new Recycle();
-                recycle.setItemId(item.getId());
-                recycle.setItemUuid(item.getUuid());
-                recycle.setItemName(item.getName());
-                recycle.setDeleteTime(System.currentTimeMillis());
-                recycle.setDeleteReason("详情页删除");
-                databaseManager.addRecycle(recycle);
-            }
+            // 3. 生成回收站记录（统一时间戳）
+            long deleteTime = System.currentTimeMillis();
+            Recycle recycle = new Recycle();
+            recycle.setItemId(item.getId());
+            recycle.setItemUuid(item.getUuid());
+            recycle.setItemName(item.getName());
+            recycle.setDeleteTime(deleteTime);
+            recycle.setDeleteReason("详情页删除");
+
+            // 4. 存入回收站表
+            databaseManager.addRecycle(recycle);
+
         });
     }
 
