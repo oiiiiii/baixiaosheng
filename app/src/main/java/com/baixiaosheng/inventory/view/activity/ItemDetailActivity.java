@@ -91,7 +91,7 @@ public class ItemDetailActivity extends AppCompatActivity {
 
     private void loadItemData() {
         // 查询物品详情
-        queryViewModel.getItemByIdLiveData(itemId).observe(this, item -> {
+        queryViewModel.getItemByIdNotDeletedLiveData(itemId).observe(this, item -> {
             if (isFinishing() || isDestroyed()) return;
             if (item == null) {
                 Toast.makeText(this, "物品不存在", Toast.LENGTH_SHORT).show();

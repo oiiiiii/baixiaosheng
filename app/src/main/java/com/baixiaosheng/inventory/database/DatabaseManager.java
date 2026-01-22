@@ -255,6 +255,10 @@ public class DatabaseManager {
         return db.itemDao().deleteItem(item);
     }
 
+    public Item getItemByIdNotDeleted(long id) {
+        return db.itemDao().getItemByIdNotDeleted(id);
+    }
+
     public Item getItemById(long id) {
         return db.itemDao().getItemById(id);
     }
@@ -276,21 +280,30 @@ public class DatabaseManager {
     }
 
     public void markItemAsDeleted(Long itemId) {
-        Item item = db.itemDao().getItemById(itemId);
+        Item item = db.itemDao().getItemByIdNotDeleted(itemId);
         if (item != null) {
             long currentTime = System.currentTimeMillis();
             db.itemDao().markItemAsDeleted(item.getUuid(), currentTime);
         }
     }
 
+
     public int restoreItemById(long itemId) {
+        Log.d("DatabaseManager", "开始恢复物品ID：" + itemId);
         Item item = db.itemDao().getItemById(itemId);
-        if (item != null) {
-            item.setIsDeleted(0);
-            item.setUpdateTime(System.currentTimeMillis());
-            return db.itemDao().updateItem(item);
+        if (item == null) {
+            Log.e("DatabaseManager", "恢复失败：物品ID=" + itemId + " 在Item表中不存在");
+            return 0;
         }
-        return 0;
+        Log.d("DatabaseManager", "物品ID=" + itemId + " 当前isDeleted状态：" + item.getIsDeleted());
+        item.setIsDeleted(0);
+        item.setUpdateTime(System.currentTimeMillis());
+        int updateResult = db.itemDao().updateItem(item);
+        Log.d("DatabaseManager", "物品ID=" + itemId + " 更新结果：" + updateResult);
+        if (updateResult <= 0) {
+            Log.e("DatabaseManager", "恢复失败：物品ID=" + itemId + " 更新isDeleted失败，返回值=" + updateResult);
+        }
+        return updateResult;
     }
 
     public void restoreItemsByIds(List<Long> itemIds) {
@@ -503,7 +516,7 @@ public class DatabaseManager {
     // 封装：批量标记物品为删除（上层无需传uuidList）
     public void batchMarkDeleted(List<Long> itemIds) {
         List<String> uuidList = itemIds.stream()
-                .map(this::getItemById)
+                .map(this::getItemByIdNotDeleted)
                 .filter(item -> item != null)
                 .map(Item::getUuid)
                 .toList();

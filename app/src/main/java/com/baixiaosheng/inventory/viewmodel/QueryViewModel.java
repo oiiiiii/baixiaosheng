@@ -290,14 +290,14 @@ public class QueryViewModel extends AndroidViewModel {
         return locationList;
     }
 
-    // 替换原错误的 getItemByIdLiveData 方法
-    public LiveData<Item> getItemByIdLiveData(long itemId) {
+    // 替换原错误的 getItemByIdNotDeletedLiveData 方法
+    public LiveData<Item> getItemByIdNotDeletedLiveData(long itemId) {
         // 创建 MutableLiveData 用于包装查询结果
         MutableLiveData<Item> itemLiveData = new MutableLiveData<>();
 
         // 在线程池中执行同步查询，避免阻塞主线程
         executor.execute(() -> {
-            Item item = databaseManager.getItemById(itemId);
+            Item item = databaseManager.getItemByIdNotDeleted(itemId);
             // 把查询结果post到主线程（postValue 自动切换到主线程）
             itemLiveData.postValue(item);
         });
@@ -333,9 +333,9 @@ public class QueryViewModel extends AndroidViewModel {
     }
 
 
-    public void getItemById(long itemId, OnItemLoadedListener listener) {
+    public void getItemByIdNotDeleted(long itemId, OnItemLoadedListener listener) {
         executor.execute(() -> {
-            Item item = databaseManager.getItemById(itemId);
+            Item item = databaseManager.getItemByIdNotDeleted(itemId);
             listener.onItemLoaded(item);
         });
     }
@@ -372,7 +372,7 @@ public class QueryViewModel extends AndroidViewModel {
     public void markItemAsDeleted(long itemId) {
         executor.execute(() -> {
             // 1. 先查询物品，避免空指针
-            Item item = databaseManager.getItemById(itemId);
+            Item item = databaseManager.getItemByIdNotDeleted(itemId);
             if (item == null) {
                 // 可选：日志记录物品不存在
                 // Log.e("QueryViewModel", "标记删除失败：物品ID=" + itemId + " 不存在");

@@ -2,10 +2,62 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp">
+    android:orientation="vertical">
 
-    <!-- 可选：添加标题栏 -->
+    <!-- 多选操作栏（默认隐藏） -->
+    <LinearLayout
+        android:id="@+id/ll_multi_select_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@color/white"
+        android:elevation="4dp"
+        android:padding="12dp"
+        android:visibility="gone">
+
+        <!-- 选中数量 -->
+        <TextView
+            android:id="@+id/tv_selected_count"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="已选择 0 项"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:gravity="center_vertical" />
+
+        <!-- 批量恢复按钮 -->
+        <Button
+            android:id="@+id/btn_batch_restore"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="恢复"
+            android:textColor="@color/colorPrimary"
+            android:background="?attr/selectableItemBackground"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="8dp" />
+
+        <!-- 分隔线 -->
+        <View
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:layout_marginHorizontal="8dp"
+            android:background="@color/gray_300" />
+
+        <!-- 彻底删除按钮 -->
+        <Button
+            android:id="@+id/btn_batch_delete"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="彻底删除"
+            android:textColor="@color/red"
+            android:background="?attr/selectableItemBackground"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="8dp" />
+
+    </LinearLayout>
+
+    <!-- 页面标题 -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -16,22 +68,29 @@
         android:background="@color/white"
         android:elevation="2dp"/>
 
-    <!-- 空状态提示 -->
-    <TextView
-        android:id="@+id/tv_empty_tip"
+    <!-- 使用FrameLayout包装，确保只有一个视图可见 -->
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:gravity="center"
-        android:text="回收站为空"
-        android:textSize="18sp"
-        android:textColor="@color/gray_600"
-        android:visibility="gone"/>
+        android:layout_height="match_parent">
 
-    <!-- 回收站物品列表 -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recycler_view_recycle"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:visibility="gone"/>
+        <!-- 空状态提示 -->
+        <TextView
+            android:id="@+id/tv_empty_tip"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="回收站为空"
+            android:textSize="18sp"
+            android:textColor="@color/gray_600"
+            android:visibility="visible"/>
+
+        <!-- 回收站物品列表 -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler_view_recycle"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone"/>
+
+    </FrameLayout>
 
 </LinearLayout>

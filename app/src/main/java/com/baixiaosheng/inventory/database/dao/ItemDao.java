@@ -51,10 +51,16 @@ public interface ItemDao {
     LiveData<List<Item>> searchAndFilterItem(String keyword, Long startDate, Long endDate);
 
     @Query("SELECT * FROM item WHERE id = :id AND isDeleted = 0")
+    Item getItemByIdNotDeleted(long id);
+
+    // 修正：查询所有状态的物品（用于回收站恢复场景）
+    @Query("SELECT * FROM item WHERE id = :id LIMIT 1")
     Item getItemById(long id);
 
     @Query("SELECT * FROM item WHERE isDeleted = 1 ORDER BY updateTime DESC")
     LiveData<List<Item>> getDeletedItemsLive();
+
+
 
     // 支持多个分类ID查询
     @Query("SELECT * FROM item WHERE isDeleted = 0 " +
